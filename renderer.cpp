@@ -5,6 +5,78 @@
 #include "objectgraphics.h"
 #include "config.h"
 
+
+#include <math.h>
+
+// ---- Fast Smooth-Lighting LUT (8-bit fixed point) ---------------------------
+static const int Z_MAX = 4096;
+static uint8_t gLightLUT[Z_MAX+1];
+static uint8_t gLightLUTFade[Z_MAX+1];
+static bool gLightLUTInit = false;
+
+static inline float SL_Curve(float z)
+{
+    const float k = 380.0f;
+    const float gamma = 1.25f;
+    float base = 1.0f / (1.0f + z / k);
+    if (base < 0.0f) base = 0.0f;
+    return powf(base, gamma);
+}
+
+static void SL_EnsureLUT()
+{
+    if (gLightLUTInit) return;
+
+    for (int z = 0; z <= Z_MAX; ++z)
+    {
+        float f  = SL_Curve((float)z);
+        float ff = f * 0.85f; // slightly darker for fade
+
+        int fi  = (int)(f  * 255.0f + 0.5f);
+        int ffi = (int)(ff * 255.0f + 0.5f);
+
+        if (fi  < 0) fi  = 0; else if (fi  > 255) fi  = 255;
+        if (ffi < 0) ffi = 0; else if (ffi > 255) ffi = 255;
+
+        gLightLUT[z]     = (uint8_t)fi;
+        gLightLUTFade[z] = (uint8_t)ffi;
+    }
+
+    gLightLUTInit = true;
+}
+
+static inline uint8_t SL_Factor(int z)
+{
+    if (!gLightLUTInit) SL_EnsureLUT();
+    if (z < 0) z = 0; else if (z > Z_MAX) z = Z_MAX;
+    return gLightLUT[z];
+}
+
+static inline uint8_t SL_FactorFade(int z)
+{
+    if (!gLightLUTInit) SL_EnsureLUT();
+    if (z < 0) z = 0; else if (z > Z_MAX) z = Z_MAX;
+    return gLightLUTFade[z];
+}
+
+static inline void ColourModifySmooth(uint8_t r, uint8_t g, uint8_t b, uint32_t& out, int z)
+{
+    uint8_t f = SL_Factor(z);
+    uint32_t R = (uint32_t(r) * f) >> 8;
+    uint32_t G = (uint32_t(g) * f) >> 8;
+    uint32_t B = (uint32_t(b) * f) >> 8;
+    out = 0xFF000000u | (R << 16) | (G << 8) | B;
+}
+
+static inline void ColourModifySmoothFade(uint8_t r, uint8_t g, uint8_t b, uint32_t& out, int z)
+{
+    uint8_t f = SL_FactorFade(z);
+    uint32_t R = (uint32_t(r) * f) >> 8;
+    uint32_t G = (uint32_t(g) * f) >> 8;
+    uint32_t B = (uint32_t(b) * f) >> 8;
+    out = 0xFF000000u | (R << 16) | (G << 8) | B;
+}
+
 const uint32_t Renderer::darkpalettes[16][16] =
 { { 0x00000000, 0x00000011, 0x00000022, 0x00000033, 0x00000044, 0x00000055, 0x00000066, 0x00000077, 0x00000088, 0x00000099, 0x000000aa, 0x000000bb, 0x000000cc, 0x000000dd, 0x000000ee, 0x000000ff },
 { 0x00000000, 0x00000000, 0x00000011, 0x00000022, 0x00000033, 0x00000044, 0x00000055, 0x00000066, 0x00000077, 0x00000088, 0x00000099, 0x000000aa, 0x000000bb, 0x000000cc, 0x000000dd, 0x000000ee },
@@ -275,11 +347,11 @@ void Renderer::DrawCeil(Camera* camera)
 
 				if (fadetimer)
 				{
-					ColourModifyFade(r, g, b, dimcol, pal);
+					ColourModifySmoothFade(r, g, b, dimcol, z);
 				}
 				else
 				{
-					ColourModify(r, g, b, dimcol, pal);
+					ColourModifySmooth(r, g, b, dimcol, z);
 				}
 
 				((uint32_t*)(rendersurface->pixels))[x + y*renderwidth] = dimcol;
@@ -357,11 +429,11 @@ void Renderer::DrawFloor(Camera* camera)
 				uint32_t dimcol;
 				if (fadetimer)
 				{
-					ColourModifyFade(r, g, b, dimcol, pal);
+					ColourModifySmoothFade(r, g, b, dimcol, z);
 				}
 				else
 				{
-					ColourModify(r, g, b, dimcol, pal);
+					ColourModifySmooth(r, g, b, dimcol, z);
 				}
 
 				((uint32_t*)(rendersurface->pixels))[x + y*renderwidth] = dimcol;
@@ -430,11 +502,11 @@ void Renderer::DrawColumn(int32_t x, int32_t ystart, int32_t h, Column* textured
 				uint32_t dimcol;
 				if (fadetimer)
 				{
-					ColourModifyFade(r, g, b, dimcol, pal);
+					ColourModifySmoothFade(r, g, b, dimcol, z);
 				}
 				else
 				{
-					ColourModify(r, g, b, dimcol, pal);
+					ColourModifySmooth(r, g, b, dimcol, z);
 				}
 				surface[x + y*renderwidth] = dimcol;
 			}
@@ -512,7 +584,7 @@ void Renderer::DrawBlood(Camera* camera)
 					{
 						if ((dy>0) && (dy < renderheight))
 						{
-							surface[dx + dy*renderwidth] = mask;
+							if (iz <= zbuff[dx]) surface[dx + dy*renderwidth] = mask;
 						}
 					}
 				}
