@@ -1,54 +1,98 @@
-# ZGloom
+# ZGloom – Modern Amiga **Gloom** Port for Windows (x86)
 
-## News
-- Fixed renderer from PSVITA SDL version
-- Extended menu navigation (ESC, arrow-keys up/down and left/right
-- Added Overlays like Vignette, Film grain and Scanlines
-- Added game icon for .EXE
+> Modernized reimplementation of the classic Amiga first-person shooter **Gloom** (including Gloom Deluxe, Gloom 3 and Zombie Massacre) for modern Windows PCs.
 
-# Comparison
+[![Latest release](https://img.shields.io/github/v/release/andiweli/ZGloom?label=latest%20release)](https://github.com/andiweli/ZGloom/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-Windows%20(x86)-blue.svg)](https://github.com/andiweli/ZGloom)
+[![Engine](https://img.shields.io/badge/engine-custom%20software%20renderer-brightgreen.svg)](https://github.com/andiweli/ZGloom)
 
-<img width="2000" height="764" alt="screen1" src="https://github.com/user-attachments/assets/b4a6257f-c72f-4581-9a2c-28d241b90741" />
+ZGloom is a modern Windows (x86) source port of the Amiga FPS **Gloom**.  
+This fork focuses on an improved renderer, extended in-game options and subtle post-processing effects while staying faithful to the original look and gameplay.
 
-<img width="2000" height="760" alt="screen2" src="https://github.com/user-attachments/assets/930e1f9f-0dea-470a-80f3-3b3e8ecf163c" />
+---
 
-# Instructions
+## ✨ Key Features
 
-## How to play
+- 🖥️ **Fixed software renderer**  
+  – Imported and adapted from the PSVITA SDL version  
+  – More accurate perspective and fewer visual glitches than the original PC port
 
-Gloom was made freely available by its developers [here](https://github.com/earok/GloomAmiga/archive/master.zip). Download, unzip the files and move the ZGloom binary and libs inside the uncompressed directory before run it. You can find the game files on the web or in the above directory ``gamefiles`` just extract the selected game inside the ZGloom folder so it looks like this (with example Gloom Deluxe as game):
+- 🎮 **Extended menu and keyboard navigation**  
+  – ESC, arrow keys up/down and left/right work throughout the menu  
+  – Additional video and effect options directly accessible in-game
 
-```
+- 🖼️ **Post-processing overlays**  
+  – Atmospheric vignette options (radius, softness, strength, warmth)  
+  – Optional film grain (with adjustable intensity)  
+  – Optional scanlines (with adjustable intensity)
+
+- 🧊 **Faithful Amiga Gloom experience on Windows**  
+  – Runs the original Gloom data files  
+  – Supports **Gloom**, **Gloom Deluxe**, **Gloom 3** and **Zombie Massacre** (depending on game data)
+
+- 🔊 **In-game MOD music support**  
+  – Uses LibXMP to play Amiga-style modules  
+  – Per-level music possible via script commands (e.g. `song_blitz.mod`)
+
+- 🧩 **Native Windows executable with icon**  
+  – Includes a proper game icon for the `.EXE`  
+  – Simple drag-and-play folder layout
+
+---
+
+## 🖼️ Screenshots
+
+Comparison of the original renderer vs. the fixed ZGloom renderer:
+
+![ZGloom renderer comparison – old vs fixed renderer](https://private-user-images.githubusercontent.com/11447150/514821611-b4a6257f-c72f-4581-9a2c-28d241b90741.png)
+
+Menu options and visual overlays (vignette, film grain, scanlines):
+
+![ZGloom menu and overlays – vignette, film grain and scanlines](https://private-user-images.githubusercontent.com/11447150/514820570-930e1f9f-0dea-470a-80f3-3b3e8ecf163c.png)
+
+---
+
+## 📦 Download
+
+Get the latest Windows (x86) build here:
+
+👉 **[Latest ZGloom release](https://github.com/andiweli/ZGloom/releases/latest)**
+
+Each release contains the `ZGloom.exe` and required libraries.  
+You still need the original Gloom game data (see below).
+
+---
+
+## 🚀 Getting Started
+
+### 1. Download the original Gloom data
+
+Gloom was made freely available by its developers.  
+Download the game data (for example the GloomAmiga archive) and extract it somewhere on your drive.
+
+You can use data files from:
+
+- **Gloom**
+- **Gloom Deluxe**
+- **Gloom 3**
+- **Zombie Massacre**
+
+### 2. Install ZGloom
+
+1. Download the latest ZGloom release from GitHub.  
+2. Extract the ZIP into a folder of your choice.  
+3. Copy the extracted Gloom game data into the same folder as `ZGloom.exe`.
+
+Your final folder might look like this (example with **Gloom Deluxe**):
+
+```text
 ZGloom.exe
 libxmp.dll
 SDL2.dll
 SDL2_mixer.dll
-maps (dir)
-misc (dir)
-objs (dir)
-pics (dir)
-sfxs (dir)
-txts (dir)
-```
-
-## Default Controls
-
-Cursors, left alt to strafe, left ctrl to fire. F1 skips level. F12 toggles fullscreen. PrintScreen dumps a bitmap. Escape pauses the action and shows the menu. The extended menu has more options than the original game and port. Now you have additional filters like Vignette, Film grain and Scanlines. Also changing values works with arrow keys left and right.
-
-## In-game music
-
-ZGloom can now add in-game music using any module that XMP can play. Put the mods in the sfxs folder and add "song_blitz.mod" or whatever the module name is to the script. Multiple song_ commands are allowed, allowing per-level music.
-
-# License
-
-Dunno. [The Gloom source release](https://github.com/earok/GloomAmiga) says only the .s and .bb2 files are open source, but the Gloom executable bakes in some maths lookup tables (but then, they are generated by the .bb2 files), bullet and sparks graphics, and 
-the title screen for Classic Gloom. I probably won't add the latter and just display the Black Magic image, or something.
-
-Uses LibXMP for MED playback
-http://xmp.sourceforge.net/
-
-Uses SDL2 and SDL2 mixer
-https://www.libsdl.org/
-
-DeCrunchmania C code by Robert Leffman, licence unknown
-http://aminet.net/package/util/pack/decrunchmania_os4
+maps/   (dir)
+misc/   (dir)
+objs/   (dir)
+pics/   (dir)
+sfxs/   (dir)
+txts/   (dir)
