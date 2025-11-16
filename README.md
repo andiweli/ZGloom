@@ -13,11 +13,24 @@
 
 ## How to play
 
-Gloom was made freely available by its developers [here](https://github.com/earok/GloomAmiga/archive/master.zip). Download, unzip and move the ZGloom binary inside the uncompressed directory before run it. 
+Gloom was made freely available by its developers [here](https://github.com/earok/GloomAmiga/archive/master.zip). Download, unzip the files and move the ZGloom binary and libs inside the uncompressed directory before run it. You can find the game files on the web or in the above directory ``gamefiles`` just extract the selected game inside the ZGloom folder so it looks like this (with example Gloom Deluxe as game):
+
+```
+ZGloom.exe
+libxmp.dll
+SDL2.dll
+SDL2_mixer.dll
+maps (dir)
+misc (dir)
+objs (dir)
+pics (dir)
+sfxs (dir)
+txts (dir)
+```
 
 ## Default Controls
 
-Cursors, left alt to strafe, left ctrl to fire. F1 skips level. F12 toggles fullscreen. PrintScreen dumps a bitmap. Escape pauses the action and shows the menu.
+Cursors, left alt to strafe, left ctrl to fire. F1 skips level. F12 toggles fullscreen. PrintScreen dumps a bitmap. Escape pauses the action and shows the menu. The extended menu has more options than the original game and port. Now you have additional filters like Vignette, Film grain and Scanlines. Also changing values works with arrow keys left and right.
 
 ## In-game music
 
