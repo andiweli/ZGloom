@@ -44,7 +44,7 @@ This fork focuses on an improved renderer, extended in-game options and subtle p
 
 Comparison of the original renderer vs. the fixed ZGloom renderer:
 
-![ZGloom renderer comparison – old vs fixed renderer](https://private-user-images.githubusercontent.com/11447150/514821611-b4a6257f-c72f-4581-9a2c-28d241b90741.png)
+![ZGloom renderer comparison – old vs fixed renderer](https://github.com/user-attachments/assets/b4a6257f-c72f-4581-9a2c-28d241b90741)
 
 Menu options and visual overlays (vignette, film grain, scanlines):
 
