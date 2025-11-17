@@ -36,4 +36,6 @@ void markWorldFrame();
     int  GetParticleDustEnabled();
     void SetParticleDustEnabled(int onOff);
 
+
+void SetHudTexture(SDL_Texture* hudTex);
 } // namespace RendererHooks

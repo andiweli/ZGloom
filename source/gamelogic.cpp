@@ -4,6 +4,52 @@
 #include "soundhandler.h"
 #include "hud.h"
 #include "config.h"
+#include <cctype>
+#include <algorithm>
+#include <sstream>
+#include <fstream>
+#include "cheats/CheatSystem.h"
+
+// --------- Minimal loader for cheats.txt (no dependency on Cheats::Load) ---------
+static bool g_CheatsLoadedOnceGL = false;
+
+static inline void trim_gl(std::string& s) {
+    auto notspace = [](int ch){ return !std::isspace(ch); };
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), notspace));
+    s.erase(std::find_if(s.rbegin(), s.rend(), notspace).base(), s.end());
+}
+static inline std::string upper_gl(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return (char)std::toupper(c); });
+    return s;
+}
+
+static void EnsureCheatsLoadedGL() {
+    if (g_CheatsLoadedOnceGL) return;
+    g_CheatsLoadedOnceGL = true;
+    std::ifstream in("cheats.txt");
+    if (!in) return;
+    std::string line;
+    while (std::getline(in, line)) {
+        auto sc = line.find_first_of(";#");
+        if (sc != std::string::npos) line = line.substr(0, sc);
+        trim_gl(line);
+        if (line.empty()) continue;
+        auto eq = line.find('=');
+        if (eq == std::string::npos) continue;
+        std::string k = upper_gl(line.substr(0, eq));
+        std::string v = upper_gl(line.substr(eq+1));
+        trim_gl(k); trim_gl(v);
+        auto isOn = [&](const std::string& s)->bool { return (s=="1" || s=="ON" || s=="TRUE"); };
+        auto toInt = [&](const std::string& s)->int { try { return std::stoi(s); } catch(...) { return 0; } };
+        if (k == "GOD") { Cheats::SetGodMode(isOn(v)); }
+        else if (k == "ONEHIT" || k == "ONEHITKILL") { Cheats::SetOneHitKill(isOn(v)); }
+        else if (k == "THERMO" || k == "THERMOGOGGLES") { Cheats::SetThermoGoggles(isOn(v)); }
+        else if (k == "BOUNCY" || k == "BOUNCYBULLETS") { Cheats::SetBouncyBullets(isOn(v)); }
+        else if (k == "INVIS" || k == "INVISIBILITY") { Cheats::SetInvisibility(isOn(v)); }
+        else if (k == "STARTWEAPON" || k == "WEAPON") { Cheats::SetStartWeapon(toInt(v)); }
+    }
+}
+
 
 void GameLogic::Init(ObjectGraphics* ograph)
 {
@@ -101,6 +147,13 @@ void GameLogic::InitLevel(GloomMap* gmapin, Camera* cam, ObjectGraphics* ograph)
 			//o.data.ms.lives = p1lives; TODO
 			o.data.ms.weapon = p1weapon;
 			o.data.ms.reload = p1reload;
+			/* CHEAT INIT OVERRIDES */
+			if (Cheats::GetGodMode()) { p1health = 32767; o.data.ms.hitpoints = p1health; }
+			{
+				int sw = Cheats::GetStartWeapon();
+				if (sw >= 0 && sw <= 4) { p1weapon = sw; o.data.ms.weapon = p1weapon; }
+			}
+
 		}
 	}
 }
@@ -711,6 +764,34 @@ bool GameLogic::Update(Camera* cam)
 	int16_t initialhealth = playerobj.data.ms.hitpoints;
 	bool squished = false;
 
+	// Ensure cheats are loaded on first frame
+	EnsureCheatsLoadedGL();
+
+	// --- CHEAT RUNTIME ENFORCEMENT (THERMO/INVIS/BOUNCY) ---
+	{
+		static bool sPrevThermo=false, sPrevInvis=false, sPrevBouncy=false;
+		const bool cThermo = Cheats::GetThermoGoggles();
+		const bool cInvis  = Cheats::GetInvisibility();
+		const bool cBouncy = Cheats::GetBouncyBullets();
+		if (cThermo) { playerobj.data.ms.thermo = 0x7FFF; } else if (sPrevThermo) { playerobj.data.ms.thermo = 0; }
+		if (cInvis)  { playerobj.data.ms.invisible = 0x7FFF; } else if (sPrevInvis)  { playerobj.data.ms.invisible = 0; }
+		if (cBouncy) { playerobj.data.ms.bouncecnt = 3; } else if (sPrevBouncy) { playerobj.data.ms.bouncecnt = 0; }
+		sPrevThermo = cThermo; sPrevInvis = cInvis; sPrevBouncy = cBouncy;
+	}
+
+	// Load cheats once per run (without opening menu)
+	EnsureCheatsLoadedGL();
+
+	// Edge-apply WEAPON immediately (0..4 apply, 5 = default/no override)
+	{
+		static int sPrevStartWeapon = -12345;
+		int sw = Cheats::GetStartWeapon();
+		if (sw != sPrevStartWeapon) {
+			sPrevStartWeapon = sw;
+			if (sw >= 0 && sw <= 4) { playerobj.data.ms.weapon = sw; p1weapon = sw; }
+		}
+	}
+
 	if (playerobj.data.ms.logic == NullLogic)
 	{
 		playerobj.x = cam->x;
@@ -730,6 +811,7 @@ bool GameLogic::Update(Camera* cam)
 		bool controlstrafeleft = keystate[Config::GetKey(Config::KEY_SLEFT)] != 0;
 		bool controlstraferight = keystate[Config::GetKey(Config::KEY_SRIGHT)] != 0;
 		bool controlstrafemod = keystate[Config::GetKey(Config::KEY_STRAFEMOD)] != 0;
+		bool controlrun = keystate[Config::GetKey(Config::KEY_RUN)] != 0;
 
 		if (Config::HaveController())
 		{
@@ -742,6 +824,15 @@ bool GameLogic::Update(Camera* cam)
 			if (contY >  8000) controldown = true;
 
 			if (Config::GetControllerFire()) controlfire = true;
+		}
+
+		bool isRunning = controlrun;
+
+		if (isRunning)
+		{
+			int32_t v = inc.GetVal();
+			v += v / 2;
+			inc.SetVal(v);
 		}
 
 		if (SDL_GetMouseState(NULL, NULL))
@@ -827,7 +918,8 @@ bool GameLogic::Update(Camera* cam)
 			*/
 
 			int16_t d2 = playerobj.data.ms.bounce;
-			playerobj.data.ms.bounce += 20;
+			int16_t stepAdd = isRunning ? 30 : 20;
+			playerobj.data.ms.bounce += stepAdd;
 			int16_t d1 = playerobj.data.ms.bounce;
 
 			d2 &= 255;
@@ -852,26 +944,27 @@ bool GameLogic::Update(Camera* cam)
 					{
 						// ULTRA MEGA OVERKILL
 						playerobj.data.ms.rotquick.SetInt(playerobj.data.ms.rotquick.GetInt() + 8);
-						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, wtable[wep].damage, wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
+						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
 						playerobj.data.ms.rotquick.SetInt(playerobj.data.ms.rotquick.GetInt() - 16);
-						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, wtable[wep].damage, wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
+						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
 						playerobj.data.ms.rotquick.SetInt(playerobj.data.ms.rotquick.GetInt() + 8);
-						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, wtable[wep].damage, wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
+						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
 					}
 					else
 					{
 						playerobj.data.ms.rotquick.SetInt(playerobj.data.ms.rotquick.GetInt() + 4);
-						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, wtable[wep].damage, wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
+						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
 						playerobj.data.ms.rotquick.SetInt(playerobj.data.ms.rotquick.GetInt() - 8);
-						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, wtable[wep].damage, wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
+						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
 						playerobj.data.ms.rotquick.SetInt(playerobj.data.ms.rotquick.GetInt() + 4);
 					}
 				}
 				else
 				{
-					Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, wtable[wep].damage, wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
+					Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
 				}
 				SoundHandler::Play(wtable[wep].sound);
+				playerobj.data.ms.reload = Cheats::GetCheatReloadForWeapon(playerobj.data.ms.weapon, playerobj.data.ms.reload);
 				playerobj.data.ms.reloadcnt = playerobj.data.ms.reload;
 				if (!Config::GetAutoFire()) firedown = true;
 				playerobj.data.ms.fired = 10;
@@ -1069,6 +1162,30 @@ bool GameLogic::Update(Camera* cam)
 	playerobj.data.ms.invisible = playerobjupdated.data.ms.invisible;
 	playerobj.data.ms.thermo = playerobjupdated.data.ms.thermo;
 	playerobj.data.ms.bouncecnt = playerobjupdated.data.ms.bouncecnt;
+	// --- CHEAT ENFORCEMENT (THERMO/INVIS/BOUNCY) - post-copy ---
+	{
+		static bool sPrevThermo2=false, sPrevInvis2=false, sPrevBouncy2=false;
+		const bool cThermo2 = Cheats::GetThermoGoggles();
+		const bool cInvis2  = Cheats::GetInvisibility();
+		const bool cBouncy2 = Cheats::GetBouncyBullets();
+		if (cThermo2) { playerobj.data.ms.thermo = 0x7FFF; } else if (sPrevThermo2) { playerobj.data.ms.thermo = 0; }
+		if (cInvis2)  { playerobj.data.ms.invisible = 0x7FFF; } else if (sPrevInvis2)  { playerobj.data.ms.invisible = 0; }
+		if (cBouncy2) { playerobj.data.ms.bouncecnt = 3; } else if (sPrevBouncy2) { playerobj.data.ms.bouncecnt = 0; }
+		sPrevThermo2 = cThermo2; sPrevInvis2 = cInvis2; sPrevBouncy2 = cBouncy2;
+	}
+
+	// --- ENFORCE WEAPON POST-COPY ---
+	{
+		int sw = Cheats::GetStartWeapon();
+		if (sw >= 0 && sw <= 4) {
+			if (playerobj.data.ms.weapon != sw) {
+				playerobj.data.ms.weapon = sw;
+				p1weapon = sw;
+			}
+		}
+	}
+
+
 
 	if (squished)
 	{
@@ -1268,7 +1385,7 @@ void GameLogic::ObjectCollision()
 
 					o.data.ms.washit = o2.identifier;
 
-					o.data.ms.hitpoints -= o2.data.ms.damage;
+					o.data.ms.hitpoints -= (o.t == ObjectGraphics::OLT_PLAYER1 ? Cheats::FilterDamageToPlayer(o2.data.ms.damage) : o2.data.ms.damage);
 					if (o.data.ms.hitpoints <= 0)
 					{
 						o.data.ms.die(o, o2, this);
@@ -1278,7 +1395,7 @@ void GameLogic::ObjectCollision()
 						o.data.ms.hit(o, o2, this);
 					}
 
-					o2.data.ms.hitpoints -= o.data.ms.damage;
+					o2.data.ms.hitpoints -= (o2.t == ObjectGraphics::OLT_PLAYER1 ? Cheats::FilterDamageToPlayer(o.data.ms.damage) : o.data.ms.damage);
 					if (o2.data.ms.hitpoints <= 0)
 					{
 						o2.data.ms.die(o2, o, this);

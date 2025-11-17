@@ -20,6 +20,55 @@
 #include "titlescreen.h"
 #include "menuscreen.h"
 #include "hud.h"
+#include "effects/MuzzleFlashFX.h"
+
+// ==================== ZHUD NO-INCLUDE GLUE BLOCK (drop-in) ====================
+// Paste this block *after* your existing #includes in zgloom.cpp (no extra headers).
+// It provides hudTex/hudLayer32 + helpers, and forward-declares the RendererHooks
+// functions so you don't need to include any new headers here.
+
+// (removed) // #include <SDL.h>
+
+// RendererHooks forward declarations removed (using included header)
+// Global HUD resources (stay internal to this TU)
+static SDL_Texture* g_ZHudTex = nullptr;
+static SDL_Surface* g_ZHudLayer32 = nullptr;
+
+// Create HUD texture/surface with ARGB8888 if missing
+static inline void ZHUD_EnsureCreated(SDL_Renderer* ren, int w, int h) {
+    if (!g_ZHudTex) {
+        g_ZHudTex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, w, h);
+        SDL_SetTextureBlendMode(g_ZHudTex, SDL_BLENDMODE_BLEND);
+    }
+    if (!g_ZHudLayer32) {
+        g_ZHudLayer32 = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_ARGB8888);
+    }
+}
+
+// Transparent clear at frame begin
+static inline void ZHUD_Clear() {
+    if (g_ZHudLayer32) SDL_FillRect(g_ZHudLayer32, nullptr, 0x00000000);
+}
+
+// Submit HUD for this frame: upload & register for on-top composition
+static inline void ZHUD_Submit(SDL_Renderer* ren) {
+    if (!g_ZHudTex || !g_ZHudLayer32) return;
+    SDL_UpdateTexture(g_ZHudTex, nullptr, g_ZHudLayer32->pixels, g_ZHudLayer32->pitch);
+    RendererHooks::SetHudTexture(g_ZHudTex);
+}
+
+// Optional cleanup
+static inline void ZHUD_Destroy() {
+    if (g_ZHudLayer32) { SDL_FreeSurface(g_ZHudLayer32); g_ZHudLayer32 = nullptr; }
+    if (g_ZHudTex) { SDL_DestroyTexture(g_ZHudTex); g_ZHudTex = nullptr; }
+}
+
+// Convenience accessors if your code used 'hudTex' / 'hudLayer32' names before:
+#define hudTex      g_ZHudTex
+#define hudLayer32  g_ZHudLayer32
+
+// ================== END ZHUD NO-INCLUDE GLUE BLOCK (drop-in) ===================
+
 
 Uint32 my_callbackfunc(Uint32 interval, void *param)
 {
@@ -198,6 +247,9 @@ int main(int argc, char* argv[])
 	SDL_Surface* render32 = SDL_CreateRGBSurface(0, renderwidth, renderheight, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
 	SDL_Surface* screen32 = SDL_CreateRGBSurface(0, 320, 256, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
 
+
+	ZHUD_EnsureCreated(ren, renderwidth, renderheight);
+    // HUD resources are created via ZHUD_EnsureCreated below; removed local redeclarations here.
 	ObjectGraphics objgraphics;
 	Renderer renderer;
 	GameLogic logic;
@@ -288,6 +340,7 @@ int main(int argc, char* argv[])
 	while (notdone)
 	{
 		RendererHooks::beginFrame();
+		SDL_FillRect(hudLayer32, NULL, 0x00000000);
 		if ((state == STATE_PARSING) || (state == STATE_SPOOLING))
 		{
 			std::string scriptstring;
@@ -647,7 +700,7 @@ int main(int argc, char* argv[])
 			//cam.rotquick.SetInt(254);
 			renderer.Render(&cam);
 			MapObject pobj = logic.GetPlayerObj();
-			hud.Render(render32, pobj, smallfont);
+			hud.Render(hudLayer32, pobj, smallfont);
 			fps++;
 		}
 		if (state == STATE_MENU)
@@ -677,9 +730,22 @@ int main(int argc, char* argv[])
 
 		if (state != STATE_SPOOLING)
 		{
+			
+			// --- Muzzle Flash (PC port from Vita 7.19): apply per frame ---
+			{
+				static uint32_t s_last = SDL_GetTicks();
+				uint32_t now = SDL_GetTicks();
+				uint32_t dt = now - s_last; s_last = now;
+				MuzzleFlashFX::Get().ApplyToSurface(render32);
+				MuzzleFlashFX::Get().Update((float)dt);
+			}
+			// --- end muzzle flash port ---
+			
 			SDL_UpdateTexture(rendertex, NULL, render32->pixels, render32->pitch);
 			SDL_RenderClear(ren);
 			SDL_RenderCopy(ren, rendertex, NULL, NULL);
+			SDL_UpdateTexture(hudTex, NULL, hudLayer32->pixels, hudLayer32->pitch);
+			RendererHooks::SetHudTexture(hudTex);
 			RendererHooks::endFramePresent();
 		}
 	}

@@ -27,6 +27,8 @@ static FilmGrainOverlay gGrain;
 static ScanlineOverlay  gScan;
 static FrameLimiter     gLimiter;
 static int              gTargetFps = 60;
+static SDL_Texture*   gHudTexThisFrame = nullptr; // HUD layer for this frame (RGBA)
+
 
 // ---- World-space dust (internal) ---------------------------------
 struct WDustParticle {
@@ -255,6 +257,12 @@ void setCameraMotion(float dx, float dy, float yawRate){
 
 
 
+
+
+void SetHudTexture(SDL_Texture* hudTex){
+    gHudTexThisFrame = hudTex;
+}
+
 void beginFrame(){
     gLimiter.beginFrame();
     // lens flare removed: clear no-op
@@ -291,6 +299,17 @@ void endFramePresent(){
 
     // Optional lens flares
     // lens flare removed: render no-op
+
+    // Composite HUD layer above overlays (if provided)
+    if (gHudTexThisFrame) {
+        // Save & restore minimal state
+        SDL_Rect vp; SDL_RenderGetViewport(gRenderer, &vp);
+        SDL_RenderSetViewport(gRenderer, nullptr);
+        SDL_SetRenderDrawBlendMode(gRenderer, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureBlendMode(gHudTexThisFrame, SDL_BLENDMODE_BLEND);
+        SDL_RenderCopy(gRenderer, gHudTexThisFrame, nullptr, nullptr);
+        SDL_RenderSetViewport(gRenderer, &vp);
+    }
 SDL_RenderPresent(gRenderer);
     gLimiter.endFrameAndSleep(gTargetFps);
 }

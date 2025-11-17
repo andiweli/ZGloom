@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="binresource.cpp" />
+    <ClCompile Include="Cheats.cpp" />
     <ClCompile Include="config.cpp" />
     <ClCompile Include="ConfigOverlays.cpp" />
     <ClCompile Include="decrunchmania.cpp" />
@@ -39,10 +40,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="binresources.h" />
+    <ClInclude Include="cheats\CheatSystem.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="ConfigOverlays.h" />
     <ClInclude Include="crmfile.h" />
     <ClInclude Include="decrunchmania.h" />
+    <ClInclude Include="effects\MuzzleFlashFX.h" />
     <ClInclude Include="font.h" />
     <ClInclude Include="gamelogic.h" />
     <ClInclude Include="gloommap.h" />

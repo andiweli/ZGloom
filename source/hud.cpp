@@ -2,6 +2,44 @@
 #include "font.h"
 #include "config.h"
 #include "objectgraphics.h"
+#include "effects/MuzzleFlashFX.h"
+
+static float g_weapon_tint[5][3] = {
+    {1.0f, 0.97f, 0.94f},
+    {1.0f, 0.97f, 0.94f},
+    {1.0f, 0.97f, 0.94f},
+    {1.0f, 0.97f, 0.94f},
+    {1.0f, 0.97f, 0.94f}
+};
+
+static inline void ComputeWeaponTintsFromIcons(SDL_Surface* icons[5]) {
+    for (int i = 0; i < 5; ++i) {
+        SDL_Surface* s = icons[i];
+        if (!s) continue;
+        uint64_t sumR = 0, sumG = 0, sumB = 0; int count = 0;
+        for (int y = 0; y < s->h; ++y) {
+            uint32_t* row = (uint32_t*)((uint8_t*)s->pixels + y * s->pitch);
+            for (int x = 0; x < s->w; ++x) {
+                uint32_t p = row[x];
+                if ((p & 0xFF000000u) == 0) continue; // skip transparent
+                sumR += (p >> 16) & 0xFFu;
+                sumG += (p >> 8)  & 0xFFu;
+                sumB += (p >> 0)  & 0xFFu;
+                ++count;
+            }
+        }
+        if (count > 0) {
+            float r = (float)sumR / (255.0f * (float)count);
+            float g = (float)sumG / (255.0f * (float)count);
+            float b = (float)sumB / (255.0f * (float)count);
+            float m = r; if (g > m) m = g; if (b > m) m = b; if (m < 1e-4f) m = 1.0f;
+            g_weapon_tint[i][0] = r / m;
+            g_weapon_tint[i][1] = g / m;
+            g_weapon_tint[i][2] = b / m;
+        }
+    }
+}
+
 #include "gloommaths.h"
 
 // ripped from PPM conversion
@@ -362,6 +400,25 @@ void Hud::Render(SDL_Surface* surface, MapObject& player, Font& font)
 			SDL_BlitScaled(gunsurfaces[player.data.ms.fired ? 1 : 0], NULL, surface, &dstrect);
 		}
 	}
+
+	
+	// --- Muzzle Flash (PC port from Vita 7.19): simple additive flash on fire ---
+	static uint8_t s_mz_prev = 0;
+	uint8_t __mz_cur = (uint8_t)player.data.ms.fired;
+	if (__mz_cur > 0) {
+		if (s_mz_prev == 0 || __mz_cur > s_mz_prev) {
+			int __wep = player.data.ms.weapon; if (__wep < 0) __wep = 0; if (__wep > 4) __wep = 4;
+			float __scale = 1.0f + 0.2f * (float)(__wep);
+			MuzzleFlashFX::Get().SetScale(__scale);
+			// Slightly warm off-white tint (match Vita default)
+			MuzzleFlashFX::Get().SetTint(g_weapon_tint[__wep][0], g_weapon_tint[__wep][1], g_weapon_tint[__wep][2]);
+			MuzzleFlashFX::Get().Trigger(1.0f, 1.0f);
+		}
+	} else {
+		if (s_mz_prev > 0) { MuzzleFlashFX::Get().Disarm(); }
+	}
+	s_mz_prev = __mz_cur;
+	// --- end muzzle flash port ---
 
 	if (Config::GetDebug())
 	{

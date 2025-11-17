@@ -2,6 +2,87 @@
 #include "config.h"
 #include "ConfigOverlays.h"
 #include "MenuAdapters.h"
+#include "cheats/CheatSystem.h"
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <cctype>
+
+
+// ---- Local loader for cheats.txt (no dependency on Cheats::Load) ---------
+static bool g_CheatsLoadedOnce = false;
+
+static inline void trim(std::string& s) {
+    auto notspace = [](int ch){ return !std::isspace(ch); };
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), notspace));
+    s.erase(std::find_if(s.rbegin(), s.rend(), notspace).base(), s.end());
+}
+static inline std::string upper(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return (char)std::toupper(c); });
+    return s;
+}
+
+static void EnsureCheatsLoaded() {
+    if (g_CheatsLoadedOnce) return;
+    g_CheatsLoadedOnce = true;
+    std::ifstream in("cheats.txt");
+    if (!in) return;
+    std::string line;
+    while (std::getline(in, line)) {
+        // strip comments
+        auto sc = line.find_first_of(";#");
+        if (sc != std::string::npos) line = line.substr(0, sc);
+        trim(line);
+        if (line.empty()) continue;
+        auto eq = line.find('=');
+        if (eq == std::string::npos) continue;
+        std::string k = upper(line.substr(0, eq));
+        std::string v = upper(line.substr(eq+1));
+        trim(k); trim(v);
+
+        auto isOn = [&](const std::string& s)->bool { return (s=="1" || s=="ON" || s=="TRUE"); };
+        auto toInt = [&](const std::string& s)->int { try { return std::stoi(s); } catch(...) { return 0; } };
+
+        if (k == "GOD") { Cheats::SetGodMode(isOn(v)); }
+        else if (k == "ONEHIT" || k == "ONEHITKILL") { Cheats::SetOneHitKill(isOn(v)); }
+        else if (k == "THERMO" || k == "THERMOGOGGLES") { Cheats::SetThermoGoggles(isOn(v)); }
+        else if (k == "BOUNCY" || k == "BOUNCYBULLETS") { Cheats::SetBouncyBullets(isOn(v)); }
+        else if (k == "INVIS" || k == "INVISIBILITY") { Cheats::SetInvisibility(isOn(v)); }
+        else if (k == "STARTWEAPON" || k == "WEAPON") { Cheats::SetStartWeapon(toInt(v)); }
+        // silently ignore unknown keys
+    }
+}
+
+
+
+
+
+
+// --- Cheat wrappers (persist on change) ------------------------------------
+static int MenuGetCheatGodMode() { EnsureCheatsLoaded(); return Cheats::GetGodMode() ? 1 : 0; }
+static void MenuSetCheatGodMode(int on) { Cheats::SetGodMode(on != 0); Cheats::Save(); }
+
+static int MenuGetCheatOneHitKill() { EnsureCheatsLoaded(); return Cheats::GetOneHitKill() ? 1 : 0; }
+static void MenuSetCheatOneHitKill(int on) { Cheats::SetOneHitKill(on != 0); Cheats::Save(); }
+
+static int MenuGetCheatThermo() { EnsureCheatsLoaded(); return Cheats::GetThermoGoggles() ? 1 : 0; }
+static void MenuSetCheatThermo(int on) { Cheats::SetThermoGoggles(on != 0); Cheats::Save(); }
+
+static int MenuGetCheatBouncy() { EnsureCheatsLoaded(); return Cheats::GetBouncyBullets() ? 1 : 0; }
+static void MenuSetCheatBouncy(int on) { Cheats::SetBouncyBullets(on != 0); Cheats::Save(); }
+
+static int MenuGetCheatInvis() { EnsureCheatsLoaded(); return Cheats::GetInvisibility() ? 1 : 0; }
+static void MenuSetCheatInvis(int on) { Cheats::SetInvisibility(on != 0); Cheats::Save(); }
+
+// Start weapon: 0..4 fixed, 5 = DEFAULT
+static int MenuGetCheatStartWeapon() { EnsureCheatsLoaded(); return Cheats::GetStartWeapon(); }
+static void MenuSetCheatStartWeapon(int idx) { Cheats::SetStartWeapon(idx); Cheats::Save(); }
+
+#ifndef MENUSTATUS_CHEATOPTIONS
+#define MENUSTATUS_CHEATOPTIONS 106
+#endif
+
+
 
 // ---- Vignette Warmth Bool Mapping (ON=WARM, OFF=COLD) ----------------------
 static int MenuGetVignetteWarmthBool() {
@@ -37,6 +118,19 @@ void MenuScreen::Render(SDL_Surface* src, SDL_Surface* dest, Font& font)
 	{
 		DisplayStandardMenu(displaymenu, flash, scale, dest, font);
 	}
+	else if (status == MENUSTATUS_CHEATOPTIONS)
+	{
+		static std::vector<MenuEntry> cheatmenu;
+		cheatmenu.clear();
+		cheatmenu.push_back(MenuEntry("RETURN", ACTION_SWITCHMENU, MENUSTATUS_MAIN, nullptr, nullptr));
+		cheatmenu.push_back(MenuEntry("GOD MODE: ", ACTION_BOOL, 0, MenuGetCheatGodMode, MenuSetCheatGodMode));
+		cheatmenu.push_back(MenuEntry("ONE HIT KILL: ", ACTION_BOOL, 0, MenuGetCheatOneHitKill, MenuSetCheatOneHitKill));
+		cheatmenu.push_back(MenuEntry("BOUNCY BULLETS: ", ACTION_BOOL, 0, MenuGetCheatBouncy, MenuSetCheatBouncy));
+		cheatmenu.push_back(MenuEntry("THERMO GOGGLES: ", ACTION_BOOL, 0, MenuGetCheatThermo, MenuSetCheatThermo));
+		cheatmenu.push_back(MenuEntry("INVISIBILITY: ", ACTION_BOOL, 0, MenuGetCheatInvis, MenuSetCheatInvis));
+		cheatmenu.push_back(MenuEntry("WEAPON: ", ACTION_INT, 6, MenuGetCheatStartWeapon, MenuSetCheatStartWeapon));
+		DisplayStandardMenu(cheatmenu, flash, scale, dest, font);
+	}
 	else if (status == MENUSTATUS_KEYCONFIG)
 	{
 		switch (selection)
@@ -62,6 +156,9 @@ void MenuScreen::Render(SDL_Surface* src, SDL_Surface* dest, Font& font)
 			case Config::KEY_STRAFEMOD:
 				font.PrintMessage("PRESS KEY FOR STRAFE MODIFIER", 120 * scale, dest, scale);
 				break;
+			case Config::KEY_RUN:
+				font.PrintMessage("PRESS KEY FOR RUN", 120 * scale, dest, scale);
+				break;
 			case Config::KEY_SHOOT:
 				font.PrintMessage("PRESS KEY FOR SHOOT", 120 * scale, dest, scale);
 				break;
@@ -79,7 +176,8 @@ MenuScreen::MenuScreen()
 	mainmenu.push_back(MenuEntry("CONTROL OPTIONS", ACTION_SWITCHMENU, MENUSTATUS_CONTROLOPTIONS, nullptr, nullptr));
 	mainmenu.push_back(MenuEntry("SOUND OPTIONS", ACTION_SWITCHMENU, MENUSTATUS_SOUNDOPTIONS, nullptr, nullptr));
 	mainmenu.push_back(MenuEntry("DISPLAY OPTIONS", ACTION_SWITCHMENU, MENUSTATUS_DISPLAYOPTIONS, nullptr, nullptr));
-	// Halbzeile //
+		mainmenu.push_back(MenuEntry("CHEAT OPTIONS", ACTION_SWITCHMENU, MENUSTATUS_CHEATOPTIONS, nullptr, nullptr));
+// Halbzeile //
 	mainmenu.push_back(MenuEntry("QUIT TO TITLE", ACTION_RETURN, MENURET_QUIT, nullptr, nullptr));
 
 	soundmenu.push_back(MenuEntry("RETURN", ACTION_SWITCHMENU, MENUSTATUS_MAIN, nullptr, nullptr));
@@ -96,6 +194,7 @@ MenuScreen::MenuScreen()
 	displaymenu.push_back(MenuEntry("MULTITHREAD RENDERER: ", ACTION_BOOL, 0, Config::GetMT, Config::SetMT));
 	// Halbzeile //
 	displaymenu.push_back(MenuEntry("BLOOD SIZE: ", ACTION_INT, 5, Config::GetBlood, Config::SetBlood));
+	displaymenu.push_back(MenuEntry("MUZZLE FLASH: ", ACTION_BOOL, 0, Config::GetMuzzleFlash, Config::SetMuzzleFlash));
 	// Halbzeile //
 	displaymenu.push_back(MenuEntry("ATMOSPHERIC VIGNETTE: ", ACTION_BOOL, 0, Config::GetVignetteEnabled, Config::SetVignetteEnabled));
 	displaymenu.push_back(MenuEntry("VIGNETTE STRENGTH: ", ACTION_INT, 6, Config::GetVignetteStrength, Config::SetVignetteStrength));
@@ -247,6 +346,20 @@ MenuScreen::MenuReturn MenuScreen::Update(SDL_Event& tevent)
 			HandleStandardMenu(tevent.key.keysym.sym, displaymenu);
 			break;
 		}
+		case MENUSTATUS_CHEATOPTIONS:
+		{
+			static std::vector<MenuEntry> cheatmenu;
+			cheatmenu.clear();
+			cheatmenu.push_back(MenuEntry("RETURN", ACTION_SWITCHMENU, MENUSTATUS_MAIN, nullptr, nullptr));
+			cheatmenu.push_back(MenuEntry("GOD MODE: ", ACTION_BOOL, 0, MenuGetCheatGodMode, MenuSetCheatGodMode));
+			cheatmenu.push_back(MenuEntry("ONE HIT KILL: ", ACTION_BOOL, 0, MenuGetCheatOneHitKill, MenuSetCheatOneHitKill));
+			cheatmenu.push_back(MenuEntry("BOUNCY BULLETS: ", ACTION_BOOL, 0, MenuGetCheatBouncy, MenuSetCheatBouncy));
+			cheatmenu.push_back(MenuEntry("THERMO GOGGLES: ", ACTION_BOOL, 0, MenuGetCheatThermo, MenuSetCheatThermo));
+			cheatmenu.push_back(MenuEntry("INVISIBILITY: ", ACTION_BOOL, 0, MenuGetCheatInvis, MenuSetCheatInvis));
+			cheatmenu.push_back(MenuEntry("WEAPON: ", ACTION_INT, 6, MenuGetCheatStartWeapon, MenuSetCheatStartWeapon));
+			HandleStandardMenu(tevent.key.keysym.sym, cheatmenu);
+			break;
+		}
 
 		default:
 			break;
@@ -258,7 +371,7 @@ MenuScreen::MenuReturn MenuScreen::Update(SDL_Event& tevent)
 
 void MenuScreen::DisplayStandardMenu(std::vector<MenuEntry>& menu, bool flash, int scale, SDL_Surface* dest, Font& font)
 {
-	int starty = 70 * scale;
+	int starty = 50 * scale;
 	int yinc = 10 * scale;
 
 	for (size_t i = 0; i < menu.size(); i++)
@@ -277,7 +390,26 @@ void MenuScreen::DisplayStandardMenu(std::vector<MenuEntry>& menu, bool flash, i
 			if (flash || (selection != i))
 			{
 				std::string menustring = menu[i].name;
-				menustring += std::to_string(menu[i].getval());
+				// Pretty names for WEAPON cheat (0..5)
+				if (menustring.rfind("WEAPON", 0) == 0)
+				{
+					static const char* kWeaponNames[6] = {
+						"PLASMA CANNON",
+						"BLASTER UPGRADE",
+						"BOOSTER UPGRADE",
+						"ION UPGRADE",
+						"PHOTON UPGRADE",
+						"GAME DEFAULT"
+					};
+					int v = menu[i].getval();
+					if (v < 0) v = 0;
+					if (v > 5) v = 5;
+					menustring += kWeaponNames[v];
+				}
+				else
+				{
+					menustring += std::to_string(menu[i].getval());
+				}
 				font.PrintMessage(menustring, starty, dest, scale);
 			}
 		}

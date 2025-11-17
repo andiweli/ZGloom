@@ -19,6 +19,7 @@ namespace Config
 		KEY_SLEFT,
 		KEY_SRIGHT,
 		KEY_STRAFEMOD,
+		KEY_RUN,
 		KEY_SHOOT,
 		KEY_END
 	};

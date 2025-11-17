@@ -296,6 +296,7 @@ namespace Config
 		configkeys[KEY_SLEFT] = SDL_SCANCODE_A;
 		configkeys[KEY_SRIGHT] = SDL_SCANCODE_D;
 		configkeys[KEY_STRAFEMOD] = SDL_SCANCODE_LALT;
+		configkeys[KEY_RUN] = SDL_SCANCODE_LSHIFT;
 
 		renderwidth = 320;
 		renderheight = 256;
@@ -566,7 +567,7 @@ namespace Config
 		{
 			file << ";ZGloom config\n\n";
 
-			file << ";SDL keyvals, up/down/left/right/strafeleft/straferight/strafemod/shoot\n";
+			file << ";SDL keyvals, up/down/left/right/strafeleft/straferight/strafemod/run/shoot\n";
 			file << "keys ";
 
 			for (int i = 0; i < KEY_END; i++)
@@ -622,6 +623,7 @@ namespace Config
 			file << "GRAIN_I=" << Config::GetFilmGrainIntensity() << "\n";
 			file << "SCAN=" << Config::GetScanlines() << "\n";
 			file << "SCAN_I=" << Config::GetScanlineIntensity() << "\n";
+            file << "MUZZLE=" << Config::GetMuzzleFlash() << "\n";
 
 			file.close();
 		}
