@@ -1,5 +1,6 @@
 #include "config.h"
 #include "ConfigOverlays.h"
+#include "effects/BlobShadowToggle.h"
 #include "objectgraphics.h"
 #include "soundhandler.h"
 #include <string>
@@ -7,6 +8,12 @@
 #include <SDL2/SDL_mixer.h>
 #include <iostream>
 #include <fstream>
+
+namespace Cheats
+{
+	void SetStartWeapon(int idx);
+	int GetStartWeapon();
+}
 
 namespace Config
 {
@@ -27,6 +34,7 @@ namespace Config
 	static bool vsync = false;
 	static bool fullscreen = false;
 	static bool switchsticks = false;
+	static int displayaspect = 0; // 0 = 4:3, 1 = 16:9
 
 	static int sfxvol;
 	static int musvol;
@@ -288,15 +296,19 @@ namespace Config
 			soundfilenames[SoundHandler::SOUND_DRAGON] = "sfxs/dragon.bin";
 		}
 
-		configkeys[KEY_SHOOT] = SDL_SCANCODE_LCTRL;
-		configkeys[KEY_UP] = SDL_SCANCODE_UP;
-		configkeys[KEY_DOWN] = SDL_SCANCODE_DOWN;
-		configkeys[KEY_LEFT] = SDL_SCANCODE_LEFT;
-		configkeys[KEY_RIGHT] = SDL_SCANCODE_RIGHT;
-		configkeys[KEY_SLEFT] = SDL_SCANCODE_A;
-		configkeys[KEY_SRIGHT] = SDL_SCANCODE_D;
-		configkeys[KEY_STRAFEMOD] = SDL_SCANCODE_LALT;
-		configkeys[KEY_RUN] = SDL_SCANCODE_LSHIFT;
+		// Default keyboard layout (used when no config.txt is present):
+		// FORWARD=W, BACKWARD=S, TURN LEFT=Q, TURN RIGHT=E,
+		// STRAFE LEFT=A, STRAFE RIGHT=D, STRAFE MODIFIER=Left Alt,
+		// RUN=Left Shift, SHOOT=Left Ctrl
+		configkeys[KEY_SHOOT] = SDL_SCANCODE_LCTRL;      // SHOOT (STRG)
+		configkeys[KEY_UP] = SDL_SCANCODE_W;             // FORWARD
+		configkeys[KEY_DOWN] = SDL_SCANCODE_S;           // BACKWARD
+		configkeys[KEY_LEFT] = SDL_SCANCODE_Q;           // TURN LEFT
+		configkeys[KEY_RIGHT] = SDL_SCANCODE_E;          // TURN RIGHT
+		configkeys[KEY_SLEFT] = SDL_SCANCODE_A;          // STRAFE LEFT
+		configkeys[KEY_SRIGHT] = SDL_SCANCODE_D;         // STRAFE RIGHT
+		configkeys[KEY_STRAFEMOD] = SDL_SCANCODE_LALT;   // STRAFE MODIFIER (ALT)
+		configkeys[KEY_RUN] = SDL_SCANCODE_LSHIFT;       // RUN
 
 		renderwidth = 320;
 		renderheight = 256;
@@ -306,6 +318,9 @@ namespace Config
 		focallength = 128;
 
 		mousesens = 5;
+
+		displayaspect = 0; // original 4:3
+
 		bloodsize = 2;
 
 		multithread = false;
@@ -329,6 +344,8 @@ namespace Config
 		}
 
 		std::ifstream file;
+
+		bool firstRunDefaults = false;
 
 		file.open("config.txt");
 
@@ -371,6 +388,12 @@ namespace Config
 						windowwidth = std::stoi(line.substr(0, line.find(" ")));
 						windowheight = std::stoi(line.substr(line.find(" ") + 1, std::string::npos));
 					}
+					if (command == "displayaspect")
+					{
+						displayaspect = std::stoi(line);
+						if (displayaspect < 0) displayaspect = 0;
+						if (displayaspect > 1) displayaspect = 1;
+					}
 					if (command == "focallength")
 					{
 						focallength = std::stoi(line);
@@ -391,7 +414,24 @@ namespace Config
 					{
 						musvol = std::stoi(line);
 					}
-					if (command == "multithread")
+					
+					if (command == "ambiencevol")
+					{
+						Config::SetAmbienceVol(std::stoi(line));
+					}
+
+					// Display Effects (new-format keys)
+					if (command == "vignette")         { Config::SetVignetteEnabled(std::stoi(line)); }
+					if (command == "strength")         { Config::SetVignetteStrength(std::stoi(line)); }
+					if (command == "radius")           { Config::SetVignetteRadius(std::stoi(line)); }
+					if (command == "softness")         { Config::SetVignetteSoftness(std::stoi(line)); }
+					if (command == "warmth")           { Config::SetVignetteWarmth(std::stoi(line)); }
+					if (command == "filmgrain")        { Config::SetFilmGrain(std::stoi(line)); }
+					if (command == "grainintensity")   { Config::SetFilmGrainIntensity(std::stoi(line)); }
+					if (command == "scanlines")        { Config::SetScanlines(std::stoi(line)); }
+					if (command == "linesintensity")   { Config::SetScanlineIntensity(std::stoi(line)); }
+					if (command == "muzzleflash")      { SetMuzzleFlash(std::stoi(line)); }
+if (command == "multithread")
 					{
 						multithread = std::stoi(line)!=0;
 					}
@@ -403,7 +443,12 @@ namespace Config
 					{
 						fullscreen = std::stoi(line) != 0;
 					}
-					if (command == "autofire")
+					
+if (command == "blobshadows")
+{
+    SetBlobShadows(std::stoi(line));
+}
+if (command == "autofire")
 					{
 						autofire = std::stoi(line) != 0;
 					}
@@ -411,6 +456,17 @@ namespace Config
 			}
 
 			file.close();
+		}
+		else
+		{
+			firstRunDefaults = true;
+		}
+
+		if (firstRunDefaults)
+		{
+			Cheats::SetStartWeapon(5);
+			SetMuzzleFlash(0);
+			SetBlobShadows(0);
 		}
 	}
 
@@ -444,7 +500,17 @@ namespace Config
 		bloodsize = b;
 	}
 
-	int GetMT()
+	
+int GetBlobShadows()
+{
+    return ZGloomPC::gBlobShadows ? 1 : 0;
+}
+
+void SetBlobShadows(int on)
+{
+    ZGloomPC::gBlobShadows = (on != 0);
+}
+int GetMT()
 	{
 		return multithread?1:0;
 	}
@@ -552,7 +618,8 @@ namespace Config
 		}
 	}
 
-	void Save()
+	
+void Save()
 	{
 		if (controller)
 		{
@@ -560,74 +627,76 @@ namespace Config
 		}
 
 		std::ofstream file;
-
 		file.open("config.txt");
+		if (!file.is_open()) return;
 
-		if (file.is_open())
+		file << ";ZGloom Configuration\n\n";
+
+		file << ";SDL keyvals, up/down/left/right/strafeleft/straferight/strafemod/run/shoot\n";
+		file << "keys ";
+		for (int i = 0; i < KEY_END; i++)
 		{
-			file << ";ZGloom config\n\n";
-
-			file << ";SDL keyvals, up/down/left/right/strafeleft/straferight/strafemod/run/shoot\n";
-			file << "keys ";
-
-			for (int i = 0; i < KEY_END; i++)
-			{
-				file << configkeys[i];
-
-				if ((i + 1) != KEY_END)
-				{
-					file << " ";
-				}
-			}
-
-			file << "\n";
-
-			file << ";The size of the game render bitmap. Bumping this up may lead to more overflow issues in the renderer. But you can get, say, 16:9 by using 460x256 or something in a larger window\n";
-			file << "rendersize " << renderwidth << " " << renderheight << "\n";
-
-			file << ";The size of the actual window/fullscreen res. Guess this should be a multiple of the above for pixel perfect\n";
-			file << "windowsize " << windowwidth << " " << windowheight << "\n";
-
-			file << ";vsync on or off?\n";
-			file << "vsync " << (vsync ? 1 : 0) << "\n";
-
-			file << ";fullscreen on or off?\n";
-			file << "fullscreen " << (fullscreen ? 1 : 0) << "\n";
-
-			file << ";focal length. Original used 128 for a 320x256 display, bump this up for higher resolution. Rule of thumb: for 90degree fov, = renderwidth/2\n";
-			file << "focallength " << focallength << "\n";
-
-			file << ";Mouse sensitivity\n";
-			file << "mousesensitivity " << mousesens << "\n";
-
-			file << ";size of blood splatters in pixels\n";
-			file << "bloodsize " << bloodsize << "\n";
-
-			file << ";audio volumes\n";
-			file << "sfxvol " << sfxvol << "\n";
-			file << "musvol " << musvol << "\n";
-
-			file << ";multithreaded renderer (somewhat experimental)\n";
-			file << "multithread " << (multithread?1:0) << "\n";
-
-			file << ";rapidfire?\n";
-			file << "autofire " << (autofire ? 1 : 0) << "\n";
-
-			file << "\n;Display Effects (unified)\n";
-			file << "VIGNETTE=" << Config::GetVignetteEnabled() << "\n";
-			file << "V_STRENGTH=" << Config::GetVignetteStrength() << "\n";
-			file << "V_RADIUS=" << Config::GetVignetteRadius() << "\n";
-			file << "V_SOFTNESS=" << Config::GetVignetteSoftness() << "\n";
-			file << "V_WARMTH=" << Config::GetVignetteWarmth() << "\n";
-			file << "GRAIN=" << Config::GetFilmGrain() << "\n";
-			file << "GRAIN_I=" << Config::GetFilmGrainIntensity() << "\n";
-			file << "SCAN=" << Config::GetScanlines() << "\n";
-			file << "SCAN_I=" << Config::GetScanlineIntensity() << "\n";
-            file << "MUZZLE=" << Config::GetMuzzleFlash() << "\n";
-
-			file.close();
+			file << configkeys[i];
+			if ((i + 1) != KEY_END) file << " ";
 		}
+		file << "\n";
+		file << ";Display aspect: 0 = 4:3 (original), 1 = 16:9 widescreen\n";
+		file << "displayaspect " << displayaspect << "\n\n";
+
+		file << "\n\n";
+
+		file << ";The size of the game render bitmap. Bumping this up may lead to more overflow issues in the renderer. But you can get, say, 16:9 by using 460x256 or something in a larger window\n";
+		file << "rendersize " << renderwidth << " " << renderheight << "\n\n";
+
+		file << ";The size of the actual window/fullscreen res. Guess this should be a multiple of the above for pixel perfect\n";
+		file << "windowsize " << windowwidth << " " << windowheight << "\n\n";
+
+		file << ";VSYNC on or off?\n";
+		file << "vsync " << (vsync ? 1 : 0) << "\n\n";
+
+		file << ";Focal length. Original used 128 for a 320x256 display, bump this up for higher resolution. Rule of thumb: for 90degree fov, = renderwidth/2\n";
+		file << "focallength " << focallength << "\n\n";
+
+		file << ";rapidfire?\n";
+		file << "autofire " << (autofire ? 1 : 0) << "\n\n";
+
+		file << ";Mouse sensitivity\n";
+		file << "mousesensitivity " << mousesens << "\n\n";
+
+		file << ";Audio volumes\n";
+		file << "sfxvol " << sfxvol << "\n";
+		file << "musvol " << musvol << "\n";
+		file << "ambiencevol " << GetAmbienceVol() << "\n\n";
+
+		file << ";Fullscreen on or off?\n";
+		file << "fullscreen " << (fullscreen ? 1 : 0) << "\n\n";
+
+		file << ";Multithreaded renderer (somewhat experimental)\n";
+		file << "multithread " << (multithread ? 1 : 0) << "\n\n";
+
+		file << ";Size of blood splatters in pixels\n";
+		file << "bloodsize " << bloodsize << "\n\n";
+
+		file << ";Muzzle Flash and Weapon/Upgrade reflections\n";
+		file << "muzzleflash " << Config::GetMuzzleFlash() << "\n\n";
+
+		file << ";blob shadows enabled?\n";
+		file << "blobshadows " << GetBlobShadows() << "\n\n";
+
+		file << ";Display Effects\n";
+		file << "vignette " << Config::GetVignetteEnabled() << "\n";
+		file << "strength " << Config::GetVignetteStrength() << "\n";
+		file << "radius " << Config::GetVignetteRadius() << "\n";
+		file << "softness " << Config::GetVignetteSoftness() << "\n";
+		file << "warmth " << Config::GetVignetteWarmth() << "\n";
+		file << "filmgrain " << Config::GetFilmGrain() << "\n";
+		file << "grainintensity " << Config::GetFilmGrainIntensity() << "\n";
+		file << "scanlines " << Config::GetScanlines() << "\n";
+		file << "linesintensity " << Config::GetScanlineIntensity() << "\n";
+
+		file.close();
 	}
+
 
 	void GetRenderSizes(int &rw, int &rh, int &ww, int& wh)
 	{
@@ -637,8 +706,25 @@ namespace Config
 		wh = windowheight;
 	}
 
+	int GetDisplayAspect()
+	{
+		return displayaspect;
+	}
+
+	void SetDisplayAspect(int a)
+	{
+		if (a < 0) a = 0;
+		if (a > 1) a = 1;
+		displayaspect = a;
+	}
+
 	int32_t GetFocalLength()
 	{
 		return focallength;
+	}
+
+	void SetFocalLength(int32_t fl)
+	{
+		focallength = fl;
 	}
 }

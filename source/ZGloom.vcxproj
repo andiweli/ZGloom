@@ -11,11 +11,15 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="audio\AtmosphereVolume.cpp" />
+    <ClCompile Include="audio\EmbeddedBGM.cpp" />
     <ClCompile Include="binresource.cpp" />
-    <ClCompile Include="Cheats.cpp" />
+    <ClCompile Include="cheats\Cheats.cpp" />
     <ClCompile Include="config.cpp" />
+    <ClCompile Include="ConfigAmbienceImpl.cpp" />
     <ClCompile Include="ConfigOverlays.cpp" />
     <ClCompile Include="decrunchmania.cpp" />
+    <ClCompile Include="effects\BlobShadowToggle.cpp" />
     <ClCompile Include="font.cpp" />
     <ClCompile Include="gamelogic.cpp" />
     <ClCompile Include="gloommap.cpp" />
@@ -31,11 +35,11 @@
     <ClCompile Include="script.cpp" />
     <ClCompile Include="soundhandler.cpp" />
     <ClCompile Include="titlescreen.cpp" />
-    <ClCompile Include="vita\FilmGrainOverlay.cpp" />
-    <ClCompile Include="vita\FrameLimiter.cpp" />
-    <ClCompile Include="vita\RendererHooks.cpp" />
-    <ClCompile Include="vita\ScanlineOverlay.cpp" />
-    <ClCompile Include="vita\VignetteOverlay.cpp" />
+    <ClCompile Include="effects\FilmGrainOverlay.cpp" />
+    <ClCompile Include="effects\FrameLimiter.cpp" />
+    <ClCompile Include="effects\RendererHooks.cpp" />
+    <ClCompile Include="effects\ScanlineOverlay.cpp" />
+    <ClCompile Include="effects\VignetteOverlay.cpp" />
     <ClCompile Include="zgloom.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -45,15 +49,20 @@
     <ClInclude Include="ConfigOverlays.h" />
     <ClInclude Include="crmfile.h" />
     <ClInclude Include="decrunchmania.h" />
+    <ClInclude Include="effects\BlobShadowToggle.h" />
     <ClInclude Include="effects\MuzzleFlashFX.h" />
     <ClInclude Include="font.h" />
     <ClInclude Include="gamelogic.h" />
+    <ClInclude Include="gameplay\MuzzleOriginFix.h" />
     <ClInclude Include="gloommap.h" />
     <ClInclude Include="gloommaths.h" />
     <ClInclude Include="hud.h" />
     <ClInclude Include="iffhandler.h" />
     <ClInclude Include="MenuAdapters.h" />
     <ClInclude Include="menuscreen.h" />
+    <ClInclude Include="audio\EmbeddedBGM.h" />
+    <ClInclude Include="audio\AtmosphereVolume.h" />
+    <ClInclude Include="audio\atmosphere_bgm.h" />
     <ClInclude Include="monsterlogic.h" />
     <ClInclude Include="objectgraphics.h" />
     <ClInclude Include="quick.h" />
@@ -61,11 +70,11 @@
     <ClInclude Include="script.h" />
     <ClInclude Include="soundhandler.h" />
     <ClInclude Include="titlescreen.h" />
-    <ClInclude Include="vita\FilmGrainOverlay.h" />
-    <ClInclude Include="vita\FrameLimiter.h" />
-    <ClInclude Include="vita\RendererHooks.h" />
-    <ClInclude Include="vita\ScanlineOverlay.h" />
-    <ClInclude Include="vita\VignetteOverlay.h" />
+    <ClInclude Include="effects\FilmGrainOverlay.h" />
+    <ClInclude Include="effects\FrameLimiter.h" />
+    <ClInclude Include="effects\RendererHooks.h" />
+    <ClInclude Include="effects\ScanlineOverlay.h" />
+    <ClInclude Include="effects\VignetteOverlay.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="ZGloom.ico" />
@@ -149,7 +158,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_mixer.lib;libxmp.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>c:\Development\VisualStudio\ZGloom\ZGloom\SDL2\lib\x86\;c:\Development\VisualStudio\ZGloom\ZGloom-master\xmp\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>c:\Development\VisualStudio\ZGloom\ZGloom\SDL2\lib\x86\;c:\Development\VisualStudio\ZGloom\ZGloom\xmp\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

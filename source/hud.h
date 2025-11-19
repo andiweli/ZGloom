@@ -8,6 +8,8 @@
 #include "font.h"
 #include "objectgraphics.h"
 
+void Hud_GetWeaponTint(int wepIndex, float& r, float& g, float& b);
+
 class Hud
 {
 	public:

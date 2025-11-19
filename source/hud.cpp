@@ -40,6 +40,17 @@ static inline void ComputeWeaponTintsFromIcons(SDL_Surface* icons[5]) {
     }
 }
 
+// Export weapon tint for renderer effects (used by renderer.cpp)
+void Hud_GetWeaponTint(int wepIndex, float& r, float& g, float& b)
+{
+    if (wepIndex < 0) wepIndex = 0;
+    if (wepIndex > 4) wepIndex = 4;
+    r = g_weapon_tint[wepIndex][0];
+    g = g_weapon_tint[wepIndex][1];
+    b = g_weapon_tint[wepIndex][2];
+}
+
+
 #include "gloommaths.h"
 
 // ripped from PPM conversion
@@ -200,6 +211,8 @@ Hud::Hud()
 			}
 		}
 	}
+
+	ComputeWeaponTintsFromIcons(weaponsprites);
 
 
 	messages.push_back("dummy");

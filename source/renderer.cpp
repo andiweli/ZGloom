@@ -4,7 +4,11 @@
 #include "gloommaths.h"
 #include "objectgraphics.h"
 #include "config.h"
-#include "vita/RendererHooks.h"
+#include "effects/RendererHooks.h"
+#include "ConfigOverlays.h"
+#include "effects/BlobShadowToggle.h"
+// Forward decl from hud.cpp
+void Hud_GetWeaponTint(int wepIndex, float& r, float& g, float& b);
 
 // ---- Fast Smooth-Lighting LUT (8-bit fixed point) ---------------------------
 #include <math.h>
@@ -57,6 +61,155 @@ static inline void ColourModifySmoothFade(uint8_t r, uint8_t g, uint8_t b, uint3
     out = 0xFF000000u | (R<<16) | (G<<8) | B;
 }
 
+
+
+// ---- Simple blob shadow helpers (ZGloom-Vita style, enemies only) ----------
+static inline uint32_t ZG_DarkenPixel(uint32_t c, uint8_t alpha/*0..255*/) {
+    // Darken towards black: alpha ~ 120 ~ ca. 47% Darkening
+    uint32_t a = c & 0xFF000000u;
+    uint32_t r = (c >> 16) & 0xFFu;
+    uint32_t g = (c >>  8) & 0xFFu;
+    uint32_t b =  c        & 0xFFu;
+
+    r = (r * (255 - alpha)) >> 8;
+    g = (g * (255 - alpha)) >> 8;
+    b = (b * (255 - alpha)) >> 8;
+    return a | (r << 16) | (g << 8) | b;
+}
+// ZGloom-PC: Vita-style projectile ground glow under flying bullets (tied to MUZZLE FLASH).
+static inline void ZG_DrawProjectileGlow(
+    uint32_t* surface,
+    int renderwidth,
+    int renderheight,
+    const int32_t* zbuff,
+    const int32_t* floorstart,
+    int cx,
+    int spriteWidth,
+    int iz,
+    float tintR,
+    float tintG,
+    float tintB,
+    int cameraY,
+    int focmult,
+    int halfrenderheight)
+{
+    if (Config::GetMuzzleFlash() == 0) return;
+    if (!surface || !zbuff || !floorstart) return;
+    if (cx < 0 || cx >= renderwidth) return;
+    if (iz <= 0) return;
+
+    int fyCenter = halfrenderheight + (cameraY * focmult) / iz;
+    if (fyCenter < 0) fyCenter = 0;
+    if (fyCenter >= renderheight) fyCenter = renderheight - 1;
+
+    const int zNear = 128;
+    const int zFar  = 4096;
+    int z = iz; if (z < zNear) z = zNear; if (z > zFar) z = zFar;
+    float distF = 1.0f - (float)(z - zNear) / (float)(zFar - zNear);
+    if (distF <= 0.01f) return;
+    if (distF < 0.0f) distF = 0.0f; if (distF > 1.0f) distF = 1.0f;
+
+    int baseRx = (spriteWidth * 3) / 4; if (baseRx < 1) baseRx = 1;
+    int rx = (int)((float)baseRx * (0.5f + 0.5f * distF)); if (rx < 1) rx = 1;
+
+    int baseRy = spriteWidth / 3; if (baseRy < 1) baseRy = 1;
+    int ry = (int)((float)baseRy * (0.5f + 0.5f * distF)); if (ry < 1) ry = 1;
+
+    for (int dx = -rx; dx <= rx; ++dx) {
+        int sx = cx + dx;
+        if (sx < 0 || sx >= renderwidth) continue;
+        if (iz > zbuff[sx]) continue;
+
+        int floorClip = floorstart[sx];
+        if (floorClip < 0) floorClip = 0;
+        if (floorClip >= renderheight) continue;
+
+        for (int dy = -ry; dy <= ry; ++dy) {
+            int sy = fyCenter + dy;
+            if (sy < floorClip) continue;
+            if (sy >= renderheight) break;
+
+            float nx = (float)dx / (float)rx;
+            float ny = (float)dy / (float)ry;
+            float radial = 1.0f - (nx*nx + ny*ny);
+            if (radial <= 0.0f) continue;
+
+            float colStrength = distF * radial;
+            if (colStrength <= 0.01f) continue;
+
+            uint32_t* p = &surface[sx + sy * renderwidth];
+            uint32_t c  = *p;
+            int br = (c >> 16) & 0xFF;
+            int bg = (c >>  8) & 0xFF;
+            int bb = (c      ) & 0xFF;
+
+            const float kGlowIntensity = 0.166667f; // ~1/6 of full brightness
+            int addR = (int)(tintR * 255.0f * colStrength * kGlowIntensity);
+            int addG = (int)(tintG * 255.0f * colStrength * kGlowIntensity);
+            int addB = (int)(tintB * 255.0f * colStrength * kGlowIntensity);
+            br += addR; if (br > 255) br = 255;
+            bg += addG; if (bg > 255) bg = 255;
+            bb += addB; if (bb > 255) bb = 255;
+            *p = 0xFF000000u | (br << 16) | (bg << 8) | bb;
+        }
+    }
+}
+
+
+static inline bool ZG_IsEnemyLogicType(int t)
+{
+    using OLT = ObjectGraphics::ObjectLogicType;
+    switch (t)
+    {
+        case OLT::OLT_MARINE:
+        case OLT::OLT_BALDY:
+        case OLT::OLT_TERRA:
+        case OLT::OLT_GHOUL:
+        case OLT::OLT_PHANTOM:
+        case OLT::OLT_DRAGON:
+        case OLT::OLT_LIZARD:
+        case OLT::OLT_DEATHHEAD:
+        case OLT::OLT_TROLL:
+        case OLT::OLT_DEMON:
+            return true;
+        default:
+            return false;
+    }
+}
+
+// Draw a flat ellipse under the feet with Z-occlusion against geometry.
+static inline void ZG_DrawBlobShadow(
+    uint32_t* surface, int renderwidth, int renderheight, const int32_t* zbuff,
+    int cx, int cy, int rx, int ry, int iz)
+{
+    if (!ZGloomPC::gBlobShadows) return;  // Toggle OFF -> kein Schatten
+    if (rx <= 0 || ry <= 0) return;
+
+    int y0 = cy - ry;
+    int y1 = cy;
+    if (y0 < 0) y0 = 0;
+    if (y1 >= renderheight) y1 = renderheight - 1;
+
+    for (int y = y0; y <= y1; ++y)
+    {
+        float ny  = (float)(y - cy) / (float)ry;            // [-1..0]
+        float base = 1.0f - ny*ny; if (base < 0.0f) base = 0.0f;
+        float spanf = (float)rx * sqrtf(base);
+        int xl = cx - (int)spanf;
+        int xr = cx + (int)spanf;
+
+        if (xl < 0) xl = 0;
+        if (xr >= renderwidth) xr = renderwidth - 1;
+        if (xl > xr) continue;
+
+        for (int x = xl; x <= xr; ++x)
+        {
+            if (iz > zbuff[x]) continue;  // von Geometrie verdeckt
+            uint32_t idx = (uint32_t)(x + y * renderwidth);
+            surface[idx] = ZG_DarkenPixel(surface[idx], 120);
+        }
+    }
+}
 
 
 const uint32_t Renderer::darkpalettes[16][16] =
@@ -236,6 +389,17 @@ void Renderer::Init(SDL_Surface* nrendersurface, GloomMap* ngloommap, ObjectGrap
 	walls.resize(gloommap->GetZones().size());
 
 	focmult = Config::GetFocalLength();
+
+	for (auto x = 0; x < renderwidth; x++)
+	{
+		Quick f;
+		Quick g;
+
+		f.SetVal(focmult);
+		g.SetVal(x - halfrenderwidth);
+
+		castgrads[x] = g / f;
+	}
 
 	for (auto x = 0; x < renderwidth; x++)
 	{
@@ -710,13 +874,91 @@ void Renderer::DrawObjects(Camera* camera)
 					iy *= focmult;
 					iy /= iz;
 
-					int h = ((shapeheight * scale / 0x100) * focmult) / iz;
-					int w = ((shapewidth * scale / 0x100) * focmult) / iz;
+					
+int h = ((shapeheight * scale / 0x100) * focmult) / iz;
+int w = ((shapewidth * scale / 0x100) * focmult) / iz;
 
-					if ((w > 0) && (h > 0))
-					{
+if ((w > 0) && (h > 0))
+{
+    // ZGloom-PC: Vita-Style blob shadow NUR für Gegner
+    if (ZG_IsEnemyLogicType(o.t) && ZGloomPC::gBlobShadows)
+    {
+        const int kShadowFarZ    = 4096;
+        const int kShadowMinSize = 12;
 
-						Quick temp;
+        bool skipShadow = (iz > kShadowFarZ) && (w < kShadowMinSize && h < kShadowMinSize);
+        if (!skipShadow)
+        {
+            // Sprite center X in Screen, Fußpunkt unten am Sprite
+            int cx = ix + halfrenderwidth;
+            int ystart_shadow = halfrenderheight - iy - h;
+            int cy = ystart_shadow + h;
+
+            // flache Ellipse unter den Füßen
+            int rx = w / 3; if (rx < 1) rx = 1;
+            int ry = w / 8; if (ry < 1) ry = 1;
+
+            uint32_t* surface = (uint32_t*)(rendersurface->pixels);
+            ZG_DrawBlobShadow(surface, renderwidth, renderheight, zbuff.data(), cx, cy, rx, ry, iz);
+        }
+    }
+        // --- ZGloom-PC: projectile ground glow tied to MUZZLE FLASH (runs for any sprite object) ---
+        {
+            int wepIndex = -1;
+            if (objectgraphics && o.data.ms.shape) {
+                // Detect bullet/spark by shape pointer
+                for (int wi = 0; wi < 5; ++wi) {
+                    if (o.data.ms.shape == &objectgraphics->BulletShapes[wi] ||
+                        o.data.ms.shape == &objectgraphics->SparkShapes[wi]) {
+                        wepIndex = wi; break;
+                    }
+                }
+                // Fallback: detect by logic type range for bullets
+                if (wepIndex < 0 && o.t >= ObjectGraphics::OLT_WEAPON1 && o.t <= ObjectGraphics::OLT_WEAPON5) {
+                    wepIndex = (int)o.t - (int)ObjectGraphics::OLT_WEAPON1;
+                }
+            }
+            if (wepIndex >= 0) {
+                int cx_proj = ix + halfrenderwidth;
+                if (cx_proj >= 0 && cx_proj < renderwidth) {
+                    float tr=1.0f, tg=1.0f, tb=1.0f;
+                    Hud_GetWeaponTint(wepIndex, tr, tg, tb);
+                    int glowW = w;
+
+                    // Enlarge pickup glow at bottom of bobbing by +50%
+                    if (o.t >= ObjectGraphics::OLT_WEAPON1 && o.t <= ObjectGraphics::OLT_WEAPON5) {
+                        int ystart_sprite = halfrenderheight - iy - h;
+                        int spriteBottom = ystart_sprite + h;
+                        int floorClip = floorstart[cx_proj];
+                        if (floorClip < 0) floorClip = 0;
+                        if (floorClip >= renderheight) floorClip = renderheight - 1;
+                        int gap = floorClip - spriteBottom; if (gap < 0) gap = 0;
+                        int maxGap = h / 2; if (maxGap < 8) maxGap = 8; if (maxGap > 32) maxGap = 32;
+                        float t = 1.0f - (float)gap / (float)maxGap; if (t < 0.0f) t = 0.0f; if (t > 1.0f) t = 1.0f;
+                        const float kPickupBottomScale = 1.5f; // 50% larger at bottom
+                        float sizeScale = 1.0f + (kPickupBottomScale - 1.0f) * t;
+                        glowW = (int)((float)w * sizeScale); if (glowW < 1) glowW = 1;
+                    }
+
+                    ZG_DrawProjectileGlow(
+                        (uint32_t*)rendersurface->pixels,
+                        renderwidth, renderheight,
+                        zbuff.data(),
+                        floorstart.data(),
+                        cx_proj,
+                        glowW,
+                        iz,
+                        tr, tg, tb,
+                        camera->y,
+                        focmult,
+                        halfrenderheight);
+                }
+            }
+        }
+
+
+    Quick temp;
+
 
 						Quick dx;
 						Quick dy;
@@ -928,6 +1170,17 @@ void Renderer::Render(Camera* camera)
 	strips.clear();
 
 	focmult = Config::GetFocalLength();
+
+	for (auto x = 0; x < renderwidth; x++)
+	{
+		Quick f;
+		Quick g;
+
+		f.SetVal(focmult);
+		g.SetVal(x - halfrenderwidth);
+
+		castgrads[x] = g / f;
+	}
 
 	for (size_t z = 0; z < walls.size(); z++)
 	{

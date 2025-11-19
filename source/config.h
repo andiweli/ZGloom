@@ -37,12 +37,17 @@ namespace Config
 	int GetKey(keyenum k);
 	void SetKey(keyenum k, int newval);
 	void GetRenderSizes(int &rw, int &rh, int &ww, int& wh);
+	int GetDisplayAspect(); // 0 = 4:3 (original), 1 = 16:9 widescreen
+	void SetDisplayAspect(int a);
 	int32_t GetFocalLength();
+	void SetFocalLength(int32_t fl);
 	int GetMouseSens();
 	void SetMouseSens(int sens);
 	int GetBlood();
 	void SetBlood(int b);
-	void SetDebug(bool b);
+	int GetBlobShadows();
+	void SetBlobShadows(int on);
+		void SetDebug(bool b);
 	bool GetDebug();
 	void SetFPS(uint32_t f);
 	uint32_t GetFPS();
@@ -74,6 +79,8 @@ namespace Config
 	int GetSFXVol();
 	void SetSFXVol(int vol);
 	int GetMusicVol();
+	int GetAmbienceVol();
+	void SetAmbienceVol(int vol);
 	void SetMusicVol(int vol);
 	void RegisterMusContext(xmp_context ctx);
 	

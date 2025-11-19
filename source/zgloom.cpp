@@ -5,13 +5,18 @@
 #include <SDL2/SDL_mixer.h>
 #include "xmp/include/xmp.h"
 
+
+// Global XMP context to avoid scope issues across code paths
+static xmp_context g_xmp = nullptr;
 #include "config.h"
 #include "gloommap.h"
 #include "script.h"
 #include "crmfile.h"
 #include "iffhandler.h"
 #include "renderer.h"
-#include "vita/RendererHooks.h"
+#include "effects/RendererHooks.h"
+#include "audio/EmbeddedBGM.h"
+#include "audio/AtmosphereVolume.h"
 #include "objectgraphics.h"
 #include <iostream>
 #include "gamelogic.h"
@@ -189,21 +194,41 @@ int main(int argc, char* argv[])
 	}
 	// SDL needs to be inited before this to pick up gamepad
 	Config::Init();
+	AtmosphereVolume::LoadFromConfig();
+	BGM::Init();
+	BGM::SetVolume9(AtmosphereVolume::Get());
 
 	GloomMap gmap;
 	Script script;
 	TitleScreen titlescreen;
 	MenuScreen menuscreen;
 	GameState state = STATE_TITLE;
-
-	xmp_context ctx;
-
-	ctx = xmp_create_context();
-	Config::RegisterMusContext(ctx);
+/* xmp_context g_xmp;  // replaced by global g_xmp */
+	g_xmp = xmp_create_context();
+	Config::RegisterMusContext(g_xmp);
 
 	int renderwidth, renderheight, windowwidth, windowheight;
 
 	Config::GetRenderSizes(renderwidth, renderheight, windowwidth, windowheight);
+
+	// Apply aspect preset: 0 = 4:3, 1 = 16:9
+	int aspect = Config::GetDisplayAspect();
+	if (aspect == 0)
+	{
+		// Original 4:3
+		renderwidth  = 320;
+		renderheight = 256;
+		windowwidth  = 960;
+		windowheight = 768;
+	}
+	else if (aspect == 1)
+	{
+		// 16:9 widescreen: keep vertical res, widen horizontally (455x256 -> 1365x768)
+		renderwidth  = 455;
+		renderheight = 256;
+		windowwidth  = 1365;
+		windowheight = 768;
+	}
 
 	CrmFile titlemusic;
 	CrmFile intermissionmusic;
@@ -294,16 +319,16 @@ int main(int argc, char* argv[])
 
 	if (titlemusic.data)
 	{
-		if (xmp_load_module_from_memory(ctx, titlemusic.data, titlemusic.size))
+		if (xmp_load_module_from_memory(g_xmp, titlemusic.data, titlemusic.size))
 		{
 			std::cout << "music error";
 		}
 
-		if (xmp_start_player(ctx, 22050, 0))
+		if (xmp_start_player(g_xmp, 22050, 0))
 		{
 			std::cout << "music error";
 		}
-		Mix_HookMusic(fill_audio, ctx);
+		Mix_HookMusic(fill_audio, g_xmp);
 		Config::SetMusicVol(Config::GetMusicVol());
 	}
 
@@ -381,16 +406,16 @@ int main(int argc, char* argv[])
 							 // level selector
 							 if (intermissionmusic.data)
 							 {
-								 if (xmp_load_module_from_memory(ctx, intermissionmusic.data, intermissionmusic.size))
+								 if (xmp_load_module_from_memory(g_xmp, intermissionmusic.data, intermissionmusic.size))
 								 {
 									 std::cout << "music error";
 								 }
 
-								 if (xmp_start_player(ctx, 22050, 0))
+								 if (xmp_start_player(g_xmp, 22050, 0))
 								 {
 									 std::cout << "music error";
 								 }
-								 Mix_HookMusic(fill_audio, ctx);
+								 Mix_HookMusic(fill_audio, g_xmp);
 								 Config::SetMusicVol(Config::GetMusicVol());
 								 intermissionmusplaying = true;
 							 }
@@ -406,16 +431,16 @@ int main(int argc, char* argv[])
 					{
 						if (intermissionmusic.data)
 						{
-							if (xmp_load_module_from_memory(ctx, intermissionmusic.data, intermissionmusic.size))
+							if (xmp_load_module_from_memory(g_xmp, intermissionmusic.data, intermissionmusic.size))
 							{
 								std::cout << "music error";
 							}
 
-							if (xmp_start_player(ctx, 22050, 0))
+							if (xmp_start_player(g_xmp, 22050, 0))
 							{
 								std::cout << "music error";
 							}
-							Mix_HookMusic(fill_audio, ctx);
+							Mix_HookMusic(fill_audio, g_xmp);
 							Config::SetMusicVol(Config::GetMusicVol());
 							intermissionmusplaying = true;
 						}
@@ -452,16 +477,16 @@ int main(int argc, char* argv[])
 
 						if (haveingamemusic)
 						{
-							if (xmp_load_module_from_memory(ctx, ingamemusic.data, ingamemusic.size))
+							if (xmp_load_module_from_memory(g_xmp, ingamemusic.data, ingamemusic.size))
 							{
 								std::cout << "music error";
 							}
 
-							if (xmp_start_player(ctx, 22050, 0))
+							if (xmp_start_player(g_xmp, 22050, 0))
 							{
 								std::cout << "music error";
 							}
-							Mix_HookMusic(fill_audio, ctx);
+							Mix_HookMusic(fill_audio, g_xmp);
 							Config::SetMusicVol(Config::GetMusicVol());
 						}
 					}
@@ -473,22 +498,22 @@ int main(int argc, char* argv[])
 					if (intermissionmusic.data && intermissionmusplaying)
 					{
 						Mix_HookMusic(nullptr, nullptr);
-						xmp_end_player(ctx);
-						xmp_release_module(ctx);
+						xmp_end_player(g_xmp);
+						xmp_release_module(g_xmp);
 						intermissionmusplaying = false;
 					}
 					if (titlemusic.data)
 					{
-						if (xmp_load_module_from_memory(ctx, titlemusic.data, titlemusic.size))
+						if (xmp_load_module_from_memory(g_xmp, titlemusic.data, titlemusic.size))
 						{
 							std::cout << "music error";
 						}
 
-						if (xmp_start_player(ctx, 22050, 0))
+						if (xmp_start_player(g_xmp, 22050, 0))
 						{
 							std::cout << "music error";
 						}
-						Mix_HookMusic(fill_audio, ctx);
+						Mix_HookMusic(fill_audio, g_xmp);
 						Config::SetMusicVol(Config::GetMusicVol());
 					}
 					break;
@@ -561,8 +586,8 @@ int main(int argc, char* argv[])
 					if (intermissionmusic.data)
 					{
 						Mix_HookMusic(nullptr, nullptr);
-						xmp_end_player(ctx);
-						xmp_release_module(ctx);
+						xmp_end_player(g_xmp);
+						xmp_release_module(g_xmp);
 						intermissionmusplaying = false;
 					}
 				}
@@ -580,8 +605,8 @@ int main(int argc, char* argv[])
 							if (titlemusic.data)
 							{
 								Mix_HookMusic(nullptr, nullptr);
-								xmp_end_player(ctx);
-								xmp_release_module(ctx);
+								xmp_end_player(g_xmp);
+								xmp_release_module(g_xmp);
 							}
 							break;
 						case TitleScreen::TITLERET_SELECT:
@@ -590,8 +615,8 @@ int main(int argc, char* argv[])
 							if (titlemusic.data)
 							{
 								Mix_HookMusic(nullptr, nullptr);
-								xmp_end_player(ctx);
-								xmp_release_module(ctx);
+								xmp_end_player(g_xmp);
+								xmp_release_module(g_xmp);
 							}
 							break;
 						case TitleScreen::TITLERET_QUIT:
@@ -613,16 +638,16 @@ int main(int argc, char* argv[])
 							state = STATE_TITLE;
 							if (titlemusic.data)
 							{
-								if (xmp_load_module_from_memory(ctx, titlemusic.data, titlemusic.size))
+								if (xmp_load_module_from_memory(g_xmp, titlemusic.data, titlemusic.size))
 								{
 									std::cout << "music error";
 								}
 
-								if (xmp_start_player(ctx, 22050, 0))
+								if (xmp_start_player(g_xmp, 22050, 0))
 								{
 									std::cout << "music error";
 								}
-								Mix_HookMusic(fill_audio, ctx);
+								Mix_HookMusic(fill_audio, g_xmp);
 								Config::SetMusicVol(Config::GetMusicVol());
 							}
 							break;
@@ -660,8 +685,8 @@ int main(int argc, char* argv[])
 						if (haveingamemusic)
 						{
 							Mix_HookMusic(nullptr, nullptr);
-							xmp_end_player(ctx);
-							xmp_release_module(ctx);
+							xmp_end_player(g_xmp);
+							xmp_release_module(g_xmp);
 							intermissionmusplaying = false;
 						}
 						state = STATE_PARSING;
@@ -687,6 +712,15 @@ int main(int argc, char* argv[])
 			}
 		}
 
+        // --- Sync Embedded Atmosphere BGM with game state (levels only) ---
+        if ((state == STATE_PLAYING || state == STATE_MENU)) {
+            if (!haveingamemusic) {
+                BGM::PlayLooping(); // idempotent; keep playing in menu
+            }
+        } else {
+            BGM::Stop();
+        }
+
 		SDL_FillRect(render32, NULL, 0);
 
 		if (state == STATE_PLAYING)
@@ -708,13 +742,87 @@ int main(int argc, char* argv[])
 			renderer.Render(&cam);
 			menuscreen.Render(render32, render32, smallfont);
 		}
-
+		
 		if ((state == STATE_WAITING) || (state == STATE_TITLE))
 		{
 			// SDL does not seem to like scaled 8->32 copy?
 			SDL_BlitSurface(render8, NULL, screen32, NULL);
-			SDL_BlitScaled(screen32, NULL, render32, &blitrect);
+
+			int aspect = Config::GetDisplayAspect();
+
+			// 4:3 (oder sehr schmale Renderbreite): altes Verhalten
+			if (aspect == 0 || renderwidth <= 320)
+			{
+				SDL_BlitScaled(screen32, NULL, render32, &blitrect);
+			}
+			else
+			{
+				// 16:9: 4:3-Bild zentriert, Seiten mit gestreckten und abgedunkelten Rändern
+				SDL_Rect center = blitrect;
+				SDL_Rect dst;
+
+				// linke Leiste
+				int leftBarW = center.x;
+				if (leftBarW > 0)
+				{
+					SDL_Rect srcL;
+					srcL.x = 0;
+					srcL.y = 0;
+					srcL.w = 16;           // schmaler Streifen vom linken Rand
+					srcL.h = screen32->h;
+
+					dst.x = 0;
+					dst.y = center.y;
+					dst.w = leftBarW;
+					dst.h = center.h;
+
+					// gestreckter Rand
+					SDL_BlitScaled(screen32, &srcL, render32, &dst);
+
+					// abdunkeln mit halbtransparentem Schwarz
+					SDL_Surface* darkL = SDL_CreateRGBSurfaceWithFormat(0, dst.w, dst.h, 32, SDL_PIXELFORMAT_RGBA8888);
+					if (darkL)
+					{
+						SDL_FillRect(darkL, NULL, SDL_MapRGBA(darkL->format, 0, 0, 0, 160));
+						SDL_SetSurfaceBlendMode(darkL, SDL_BLENDMODE_BLEND);
+						SDL_BlitSurface(darkL, NULL, render32, &dst);
+						SDL_FreeSurface(darkL);
+					}
+				}
+
+				// rechte Leiste
+				int rightBarW = renderwidth - (center.x + center.w);
+				if (rightBarW > 0)
+				{
+					SDL_Rect srcR;
+					srcR.x = screen32->w - 16; // Streifen vom rechten Rand
+					srcR.y = 0;
+					srcR.w = 16;
+					srcR.h = screen32->h;
+
+					dst.x = center.x + center.w;
+					dst.y = center.y;
+					dst.w = rightBarW;
+					dst.h = center.h;
+
+					SDL_BlitScaled(screen32, &srcR, render32, &dst);
+
+					SDL_Surface* darkR = SDL_CreateRGBSurfaceWithFormat(0, dst.w, dst.h, 32, SDL_PIXELFORMAT_RGBA8888);
+					if (darkR)
+					{
+						SDL_FillRect(darkR, NULL, SDL_MapRGBA(darkR->format, 0, 0, 0, 160));
+						SDL_SetSurfaceBlendMode(darkR, SDL_BLENDMODE_BLEND);
+						SDL_BlitSurface(darkR, NULL, render32, &dst);
+						SDL_FreeSurface(darkR);
+					}
+				}
+
+				// zentriertes 4:3-Hauptbild
+				SDL_BlitScaled(screen32, NULL, render32, &center);
+			}
 		}
+
+
 
 		if (printscreen)
 		{
@@ -750,7 +858,8 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	xmp_free_context(ctx);
+	BGM::Shutdown();
+	xmp_free_context(g_xmp);
 
 	Config::Save();
 

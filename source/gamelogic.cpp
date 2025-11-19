@@ -932,8 +932,21 @@ bool GameLogic::Update(Camera* cam)
 		}
 
 		if (controlfire)
-		{
-			//Shoot!
+{
+            // Ensure muzzle-origin spawn independent of strafe movement
+            auto MakeShotFromMuzzle = [&](MapObject p)->MapObject {
+                MapObject m = p;
+                Quick fwdInc; fwdInc.SetInt(28);   // forward offset
+                Quick rightInc; rightInc.SetInt(0); // side offset (weapon on right)
+                Quick rotF[4], rotR[4];
+                GloomMaths::GetCamRot(p.data.ms.rotquick.GetInt() & 0xFF, rotF);
+                GloomMaths::GetCamRot((p.data.ms.rotquick.GetInt() + 64) & 0xFF, rotR);
+                m.x = cam->x - rotF[1] * fwdInc + rotR[1] * rightInc;
+                m.z = cam->z + rotF[0] * fwdInc - rotR[0] * rightInc;
+                // keep m.y unchanged; weapon height already encoded in rendering
+                return m;
+            };
+//Shoot!
 			if ((playerobj.data.ms.reloadcnt == 0) && (!firedown))
 			{
 				auto wep = playerobj.data.ms.weapon;
@@ -944,28 +957,28 @@ bool GameLogic::Update(Camera* cam)
 					{
 						// ULTRA MEGA OVERKILL
 						playerobj.data.ms.rotquick.SetInt(playerobj.data.ms.rotquick.GetInt() + 8);
-						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
+						Shoot(MakeShotFromMuzzle(playerobj), this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
 						playerobj.data.ms.rotquick.SetInt(playerobj.data.ms.rotquick.GetInt() - 16);
-						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
+						Shoot(MakeShotFromMuzzle(playerobj), this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
 						playerobj.data.ms.rotquick.SetInt(playerobj.data.ms.rotquick.GetInt() + 8);
-						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
+						Shoot(MakeShotFromMuzzle(playerobj), this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
 					}
 					else
 					{
 						playerobj.data.ms.rotquick.SetInt(playerobj.data.ms.rotquick.GetInt() + 4);
-						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
+						Shoot(MakeShotFromMuzzle(playerobj), this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
 						playerobj.data.ms.rotquick.SetInt(playerobj.data.ms.rotquick.GetInt() - 8);
-						Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
+						Shoot(MakeShotFromMuzzle(playerobj), this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
 						playerobj.data.ms.rotquick.SetInt(playerobj.data.ms.rotquick.GetInt() + 4);
 					}
 				}
 				else
 				{
-					Shoot(playerobj, this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
+					Shoot(MakeShotFromMuzzle(playerobj), this, (playerobj.data.ms.collwith & 3) ^ 3, 0, wtable[wep].hitpoint, Cheats::AmplifyPlayerOutgoingDamage(wtable[wep].damage), wtable[wep].speed, wtable[wep].shape, wtable[wep].spark);
 				}
 				SoundHandler::Play(wtable[wep].sound);
 				playerobj.data.ms.reload = Cheats::GetCheatReloadForWeapon(playerobj.data.ms.weapon, playerobj.data.ms.reload);
-				playerobj.data.ms.reloadcnt = playerobj.data.ms.reload;
+				playerobj.data.ms.reloadcnt = playerobj.data.ms.reload * 2; // global fire rate -50% (slower)
 				if (!Config::GetAutoFire()) firedown = true;
 				playerobj.data.ms.fired = 10;
 			}

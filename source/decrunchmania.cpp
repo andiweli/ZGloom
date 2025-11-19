@@ -136,7 +136,7 @@ decrloop:
     if(d4 < 0x8000)
         goto sequence;
 
-    *(--a1) = d4;
+    *(--a1) = static_cast<unsigned char>(d4 & 0xFFu);
     d5--;
     if(d5 != 0xffff)
         goto decrloop;
@@ -204,18 +204,18 @@ static void writew(void *data, unsigned short w)
 {
 	unsigned char *p = (unsigned char *)data;
 
-    p[0] = w>>8;
-    p[1] = w;
+    p[0] = static_cast<unsigned char>((w >> 8) & 0xFFu);
+    p[1] = static_cast<unsigned char>( w        & 0xFFu);
 }
 
 static void writel(void *data, unsigned int l)
 {
 	unsigned char *p = (unsigned char *)data;
 
-    p[0] = l>>24;
-    p[1] = l>>16;
-    p[2] = l>>8;
-    p[3] = l;
+    p[0] = static_cast<unsigned char>((l >> 24) & 0xFFu);
+    p[1] = static_cast<unsigned char>((l >> 16) & 0xFFu);
+    p[2] = static_cast<unsigned char>((l >> 8)  & 0xFFu);
+    p[3] = static_cast<unsigned char>( l        & 0xFFu);
 }
 
 static unsigned short readw(void *data)

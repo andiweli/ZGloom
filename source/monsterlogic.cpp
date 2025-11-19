@@ -3,6 +3,15 @@
 #include "gamelogic.h"
 #include "monsterlogic.h"
 #include "hud.h"
+#include "cheats/CheatSystem.h"
+
+#include <limits>
+static inline int16_t clamp_to_i16_size(std::size_t v) {
+	return v > static_cast<std::size_t>(std::numeric_limits<int16_t>::max())
+		? std::numeric_limits<int16_t>::max()
+		: static_cast<int16_t>(v);
+}
+
 
 void BaldyPunch(MapObject& o, GameLogic* logic);
 int8_t CheckColl(MapObject& o1, MapObject &o2);
@@ -244,7 +253,7 @@ void WeaponLogic(MapObject& o, GameLogic* logic)
 		move	d0,ob_delay(a0)
 		*/
 		sparksobj.data.ms.shape = o.data.ms.chunks;
-		sparksobj.data.ms.frame = GloomMaths::RndN(o.data.ms.chunks->size()) << 16;
+		sparksobj.data.ms.frame = GloomMaths::RndN(clamp_to_i16_size(o.data.ms.chunks->size())) << 16;
 		sparksobj.data.ms.logic = SparksLogic;
 		sparksobj.data.ms.render = 1;
 		sparksobj.data.ms.colltype = 0;
@@ -274,7 +283,7 @@ void MakeSparks(MapObject& o, GameLogic* logic)
 		sparksobj.data.ms.zvec = BloodSpeed2();
 
 		sparksobj.data.ms.shape = o.data.ms.chunks;
-		sparksobj.data.ms.frame = GloomMaths::RndN(o.data.ms.chunks->size()) << 16;
+		sparksobj.data.ms.frame = GloomMaths::RndN(clamp_to_i16_size(o.data.ms.chunks->size())) << 16;
 		sparksobj.data.ms.logic = SparksLogic;
 		sparksobj.data.ms.render = 1;
 		sparksobj.data.ms.colltype = 0;
@@ -796,21 +805,6 @@ void Shoot(MapObject& o, GameLogic* logic, int32_t colltype, int32_t collwith, i
 	temp.SetInt(o.data.ms.firey);
 	newobject.y = o.y + temp;
 	newobject.z = o.z;
-
-
-// ---- MUZZLE FIX (forward-only offset, no lateral) ----
-{
-	Quick camq[4];
-	GloomMaths::GetCamRot(o.data.ms.rotquick.GetInt() & 255, camq);
-	Quick fwd; fwd.SetInt(32); // forward distance (tweak if needed)
-	Quick offx = camq[1] * fwd; // forward X
-	Quick offz = camq[3] * fwd; // forward Z
-	if (o.t == 0) { // only the player
-		newobject.x = newobject.x - offx; // x uses negative sign
-		newobject.z = newobject.z + offz; // z uses positive sign
-	}
-}
-// ------------------------------------------------------
 	newobject.data.ms.logic = FireLogic;
 	newobject.data.ms.render = 1;
 	newobject.data.ms.hit = NullLogicComp;
@@ -1999,15 +1993,25 @@ void DemonLogic(MapObject& o, GameLogic* logic)
 
 void HealthGot(MapObject& thisobj, MapObject& otherobj, GameLogic* logic)
 {
-	SoundHandler::Play(SoundHandler::SOUND_TOKEN);
+    SoundHandler::Play(SoundHandler::SOUND_TOKEN);
 
-	otherobj.data.ms.hitpoints += 5;
-	if (otherobj.data.ms.hitpoints > 25) otherobj.data.ms.hitpoints = 25;
+    // Safe heal with clamp; avoid int16 overflow when GOD mode set huge HP
+    int hp = (int)otherobj.data.ms.hitpoints;
+    if (hp < 0) hp = 0;
+    hp += 5;
 
-	otherobj.data.ms.messtimer = -127;
-	otherobj.data.ms.mess = Hud::MESSAGES_HEALTH_BONUS;
+    if (Cheats::GetGodMode()) {
+        // Keep god-mode semantics: effectively infinite health
+        hp = 32767;
+    } else if (hp > 25) {
+        hp = 25;
+    }
+    otherobj.data.ms.hitpoints = (int16_t)hp;
 
-	thisobj.killme = true;
+    otherobj.data.ms.messtimer = -127;
+    otherobj.data.ms.mess = Hud::MESSAGES_HEALTH_BONUS;
+
+    thisobj.killme = true;
 }
 
 void BouncyLogic(MapObject& o, GameLogic* logic)

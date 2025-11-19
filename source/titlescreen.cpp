@@ -7,10 +7,12 @@ void TitleScreen::Render(SDL_Surface* src, SDL_Surface* dest, Font& font)
 
 	if (status == TITLESTATUS_MAIN)
 	{
-		if (flash || (selection != MAINENTRY_PLAY)) font.PrintMessage("PLAY GLOOM", 150, dest, 1);
-		if (flash || (selection != MAINENTRY_SELECT)) font.PrintMessage("LEVEL SELECT", 170, dest, 1);
+		if (flash || (selection != MAINENTRY_PLAY)) font.PrintMessage("START NEW GAME", 160, dest, 1);
+		if (flash || (selection != MAINENTRY_SELECT)) font.PrintMessage("LEVEL SELECT", 175, dest, 1);
 		if (flash || (selection != MAINENTRY_ABOUT)) font.PrintMessage("ABOUT GLOOM", 190, dest, 1);
-		if (flash || (selection != MAINENTRY_QUIT)) font.PrintMessage("EXIT GLOOM", 210, dest, 1);
+		if (flash || (selection != MAINENTRY_QUIT)) font.PrintMessage("EXIT GAME", 205, dest, 1);
+
+		font.PrintMessage("ZGLOOM X86 11.2025", 243, dest, 1);
 	}
 	else if (status == TITLESTATUS_SELECT)
 	{
@@ -30,17 +32,18 @@ void TitleScreen::Render(SDL_Surface* src, SDL_Surface* dest, Font& font)
 		font.PrintMessage("PROGRAMMED BY MARK SIBLY", 60, dest, 1);
 		font.PrintMessage("GRAPHICS BY THE BUTLER BROTHERS", 70, dest, 1);
 		font.PrintMessage("MUSIC BY KEV STANNARD", 80, dest, 1);
-		font.PrintMessage("AUDIO BY US", 90, dest, 1);
-		font.PrintMessage("PRODUCED BY US", 100, dest, 1);
-		font.PrintMessage("DESIGNED BY US", 110, dest, 1);
-		font.PrintMessage("GAME CODED IN DEVPAC2", 120, dest, 1);
-		font.PrintMessage("UTILITIES CODED IN BLITZ BASIC 2", 130, dest, 1);
-		font.PrintMessage("RENDERED IN DPAINT3 AND DPAINT4", 140, dest, 1);
-		font.PrintMessage("DECRUNCHING CODE BY THOMAS SCHWARZ", 150, dest, 1);
+		font.PrintMessage("AUDIO BY BLACK MAGIC", 90, dest, 1);
+		font.PrintMessage("PRODUCED BY BLACK MAGIC", 100, dest, 1);
+		
+		font.PrintMessage("GAME CODED IN DEVPAC2", 115, dest, 1);
+		font.PrintMessage("UTILITIES CODED IN BLITZ BASIC 2", 125, dest, 1);
+		font.PrintMessage("RENDERED IN DPAINT3 AND DPAINT4", 135, dest, 1);
+		font.PrintMessage("DECRUNCHCODE BY THOMAS SCHWARZ", 145, dest, 1);
 
-		font.PrintMessage("ABOUT THIS PORT", 170, dest, 1);
-		font.PrintMessage("PORTED BY SWIZPIG", 180, dest, 1);
-		font.PrintMessage("ADDITIONAL CODING BY ANDIWELI", 190, dest, 1);
+		font.PrintMessage("ABOUT THE X86 PORT", 165, dest, 1);
+		font.PrintMessage("GAME PORTED BY SWIZPIG", 180, dest, 1);
+		font.PrintMessage("ADDITIONAL CODE AND FIXES", 195, dest, 1);
+		font.PrintMessage("AND EFFECTS BY ANDIWELI", 205, dest, 1);
 	}
 }
 
