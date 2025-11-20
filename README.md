@@ -13,30 +13,29 @@ This fork focuses on an improved renderer, extended in-game options and subtle p
 
 ## ✨ Key Features
 
-- 🖥️ **Fixed software renderer**  
-  – Imported and adapted from the PSVITA SDL version  
-  – More accurate perspective and fewer visual glitches than the original PC port
+- **Modern Windows port of Amiga Gloom**  
+  Faithful software-rendered Windows (x86) version of the original Amiga FPS engine.
 
-- 🎮 **Extended menu and keyboard navigation**  
-  – ESC, arrow keys up/down and left/right work throughout the menu  
-  – Additional video and effect options directly accessible in-game
+- **Supports original games and mods**  
+  Works with classic data files and popular mods such as **“Death Mask”** and **“8bit Killer”** (as long as they follow the original engine layout).
 
-- 🖼️ **Post-processing overlays**  
-  – Atmospheric vignette options (radius, softness, strength, warmth)  
-  – Optional film grain (with adjustable intensity)  
-  – Optional scanlines (with adjustable intensity)
+- **Built-in multi-game launcher**  
+  If more than one game or mod is installed, a simple launcher lets you choose between **Gloom**, **Gloom Deluxe**, **Gloom 3**, **Zombie Massacre** or supported mods at startup.
 
-- 🧊 **Faithful Amiga Gloom experience on Windows**  
-  – Runs the original Gloom data files  
-  – Supports **Gloom**, **Gloom Deluxe**, **Gloom 3** and **Zombie Massacre** (depending on game data)
+- **4:3 / 16:9 display modes with FOV control**  
+  Switch between classic 4:3 and widescreen 16:9 and adjust the **field of view** to match your display and taste.
 
-- 🔊 **In-game MOD music support**  
-  – Uses LibXMP to play Amiga-style modules  
-  – Per-level music possible via script commands (e.g. `song_blitz.mod`)
+- **Improved software renderer**  
+  Cleaner perspective, fewer glitches and subtle polish compared to the original PC port.
 
-- 🧩 **Native Windows executable with icon**  
-  – Includes a proper game icon for the `.EXE`  
-  – Simple drag-and-play folder layout
+- **Dynamic muzzle flash and projectile reflections**  
+  Each shot briefly brightens the floor, and colored reflection ellipses are rendered under projectiles and weapon upgrade orbs, matching weapon type and upgrade level.
+
+- **Optional post-processing overlays**  
+  Configurable **vignette**, **film grain** and **scanlines** to add atmosphere without changing gameplay.
+
+- **In-game MOD music via LibXMP**  
+  Drop tracker modules into the game folder and use script `song_` commands for **per-level music**.
 
 ---
 
@@ -153,8 +152,8 @@ For future versions, the following features and improvements are planned:
 - ~~**HUD rendering above post-processing overlays**~~  
   ~~Adjust the rendering order so the HUD is drawn on top of vignette / film grain / scanline effects, keeping it crisp and perfectly readable.~~
 
-- **Optional background / ambient sound layers**  
-  Add support for subtle ambient or background soundscapes to enhance atmosphere without changing core gameplay.
+~~- **Optional background / ambient sound layers**~~  
+  ~~Add support for subtle ambient or background soundscapes to enhance atmosphere without changing core gameplay.~~
 
 - **Further small enhancements and quality-of-life improvements**  
   Ongoing tweaks based on user feedback, including minor visual polish, configuration options and bug fixes where needed.
