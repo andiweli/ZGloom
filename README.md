@@ -31,7 +31,7 @@ This fork focuses on an improved renderer, extended in-game options and subtle p
 - **Optional post-processing overlays**  
   Configurable **vignette**, **film grain** and **scanlines** to add atmosphere without changing gameplay.
 
-- **Save/Load position option**
+- **Save/Load position option**  
   Saves your position in the game as well as weapon and ammo.
 
 ---
