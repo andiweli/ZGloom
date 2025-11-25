@@ -31,6 +31,9 @@ This fork focuses on an improved renderer, extended in-game options and subtle p
 - **Optional post-processing overlays**  
   Configurable **vignette**, **film grain** and **scanlines** to add atmosphere without changing gameplay.
 
+- **Save/Load position option**
+  Saves your position in the game as well as weapon and ammo.
+
 ---
 
 ## 🖼️ Screenshots and Video
@@ -112,31 +115,6 @@ Keyboard controls in ZGloom:
 
 The extended menu offers more options than the original game and port.  
 You can change values with the **left/right arrow keys** (for example for fullscreen, vignette, film grain, scanlines, and other display options).
-
----
-
-## 🔮 Planned Features
-
-The current Windows build focuses on stability and visual parity with the original game.  
-For future versions, the following features and improvements are planned:
-
-- ~~**Integrated cheat menu from the PS Vita version**~~  
-  ~~Port the extended cheat menu from the PS Vita ports (e.g. infinite health, weapon tweaks) and expose it directly in the PC options menu.~~
-
-- **Save & load position system from PS Vita**  
-  Bring over the position save/load logic from the Vita builds to allow resuming from checkpoints or specific spots in a level instead of always starting from the beginning.
-
-- ~~**Additional fixes for weapon firing behaviour**~~  
-  ~~Further refine projectile origin, muzzle flash alignment and strafing behaviour so shots always leave the weapon at the correct position and angle.~~
-
-- ~~**HUD rendering above post-processing overlays**~~  
-  ~~Adjust the rendering order so the HUD is drawn on top of vignette / film grain / scanline effects, keeping it crisp and perfectly readable.~~
-
-~~- **Optional background / ambient sound layers**~~  
-  ~~Add support for subtle ambient or background soundscapes to enhance atmosphere without changing core gameplay.~~
-
-- **Further small enhancements and quality-of-life improvements**  
-  Ongoing tweaks based on user feedback, including minor visual polish, configuration options and bug fixes where needed.
 
 ---
 
