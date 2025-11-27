@@ -554,7 +554,7 @@ static bool GL_RunGameLauncher(const std::vector<GameInstall>& installs, GameIns
     const int winH = 400;
 
     SDL_Window* win = SDL_CreateWindow(
-        "ZGloom Launcher",
+        "Gloom Launcher",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         winW, winH,
         SDL_WINDOW_SHOWN);
