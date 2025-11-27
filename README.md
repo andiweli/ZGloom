@@ -159,4 +159,7 @@ Instead, it uses alternative imagery such as the Black Magic image.
 - This fork and Windows renderer & overlay work by **Andiweli**
 - background ambience credit goes to Prophet
 
-If you like the project, consider giving the repository a ⭐ star on GitHub – it helps other Amiga and retro-FPS fans discover ZGloom.
+**Keywords / Topics:**  
+_amiga • gloom • vita • psvita • windows • x86 • android • macos • homebrew • zgloom • gloomdeluxe • zombiemassacre • sdl • libxmp • vita2d • ps tv shooter_
+
+If you enjoy it, feel free to ⭐ star the repo so other PS Vita & Amiga fans can find it more easily.
